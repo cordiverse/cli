@@ -16,16 +16,18 @@ const isArray = Array.isArray as (arg: any) => arg is readonly any[]
 
 const BRACKET_REGEXP = /<([^<>]+)>|\[([^\[\]]+)\]/g
 
-export type Transform<S = never, T = any> = (source: string, session: S) => T
-
-export interface DomainConfig<S = never, T = any> {
+export interface Type<S = never, T = any> {
   name?: string
-  transform?: Transform<S, T>
+  parse: Type.Parse<S, T>
   greedy?: boolean
   numeric?: boolean
 }
 
-export interface Domains {
+export namespace Type {
+  export type Parse<S = never, T = any> = (source: string, session: S) => T
+}
+
+export interface Types {
   string: string
   text: string
   boolean: boolean
@@ -38,91 +40,110 @@ export interface Domains {
   datetime: Date
 }
 
-export type Type<S = never> = keyof Domains | RegExp | readonly string[] | Transform<S> | DomainConfig<S>
+export type TypeInit<S = never> =
+  // | keyof Types
+  | RegExp
+  | readonly string[]
+  | Type.Parse<S>
+  | Type<S>
 
-export interface ArgDecl {
+export type ArgKind = 'argument' | 'option'
+
+export interface ArgDecl<U = never> extends Type<U> {
+  kind: ArgKind
   name: string
-  type: DomainConfig
   variadic: boolean
   required: boolean
 }
 
+export interface Token {
+  content: string
+  quotes?: [string, string]
+}
+
+export interface ParserResult {
+  tokens: Token[]
+}
+
+const LEFT_QUOTES = `"'“‘`
+const RIGHT_QUOTES = `"'”’`
+
 export default class Iroha<U = never> extends Service {
-  _builtin: Dict<DomainConfig<U> | undefined> = {}
+  _builtin: Dict<Type<U> | undefined> = {}
   _commands = new DisposableList<Command<U>>()
-  _aliases: Dict<Command<U>> = Object.create(null)
+  _aliases: Dict<Command<U> | undefined> = Object.create(null)
 
   constructor(ctx: Context) {
     super(ctx, 'iroha')
 
-    this.domain('string', source => source)
-    this.domain('text', source => source, { greedy: true })
-    this.domain('boolean', () => true)
+    this.define('string', source => source)
+    this.define('text', source => source, { greedy: true })
+    this.define('boolean', () => true)
 
-    this.domain('number', (source, session) => {
+    this.define('number', (source, session) => {
       const value = +source
       if (Number.isFinite(value)) return value
       throw new Error('internal.invalid-number')
     }, { numeric: true })
 
-    this.domain('integer', (source, session) => {
+    this.define('integer', (source, session) => {
       const value = +source
       if (value * 0 === 0 && Math.floor(value) === value) return value
       throw new Error('internal.invalid-integer')
     }, { numeric: true })
 
-    this.domain('posint', (source, session) => {
+    this.define('posint', (source, session) => {
       const value = +source
       if (value * 0 === 0 && Math.floor(value) === value && value > 0) return value
       throw new Error('internal.invalid-posint')
     }, { numeric: true })
 
-    this.domain('natural', (source, session) => {
+    this.define('natural', (source, session) => {
       const value = +source
       if (value * 0 === 0 && Math.floor(value) === value && value >= 0) return value
       throw new Error('internal.invalid-natural')
     }, { numeric: true })
 
-    this.domain('date', (source, session) => {
+    this.define('date', (source, session) => {
       const timestamp = Time.parseDate(source)
       if (+timestamp) return timestamp
       throw new Error('internal.invalid-date')
     })
   }
 
-  domain<K extends keyof Domains>(name: K, transform: Transform<U, Domains[K]>, options?: DomainConfig<U, Domains[K]>) {
+  define<K extends keyof Types>(name: K, parse: Type.Parse<U, Types[K]>, options?: Omit<Type<U, Types[K]>, 'parse'>) {
     return this.ctx.effect(() => {
-      this._builtin[name] = { name, ...options, transform }
+      this._builtin[name] = { name, ...options, parse }
       return () => delete this._builtin[name]
     })
   }
 
-  parseType(type: any): DomainConfig<U> {
+  parseType(type: any): Type<U> {
     if (typeof type === 'string') {
-      const domain = this._builtin[type]
-      if (!domain) throw new Error(`unknown type "${type}"`)
-      return domain
+      type = this._builtin[type]
+      if (!type) throw new Error(`unknown type "${type}"`)
+      return type
     } else if (typeof type === 'function') {
-      return { transform: type }
+      return { parse: type }
     } else if (type instanceof RegExp) {
-      const transform = (source: string) => {
+      const parse = (source: string) => {
         if (type.test(source)) return source
         throw new Error()
       }
-      return { transform }
+      return { parse }
     } else if (isArray(type)) {
-      const transform = (source: string) => {
+      const parse = (source: string) => {
         if (type.includes(source)) return source
         throw new Error()
       }
-      return { transform }
+      return { parse }
     }
-    return type ?? {}
+    return type ?? { parse: source => source }
   }
 
-  parseDecl(source: string): ArgDecl[] {
+  parseArgDecls(source: string, kind: ArgKind): ArgDecl<U>[] {
     let cap: RegExpExecArray | null
-    const args: ArgDecl[] = []
+    const args: ArgDecl<U>[] = []
     while ((cap = BRACKET_REGEXP.exec(source))) {
       let rawName = cap[1]
       let variadic = false
@@ -132,12 +153,29 @@ export default class Iroha<U = never> extends Service {
       }
       const [name, rawType] = rawName.split(':')
       args.push({
+        ...this.parseType(rawType),
         name,
-        type: this.parseType(rawType),
+        kind,
         variadic,
         required: cap[0][0] === '<',
       })
     }
     return args
+  }
+
+  parseToken(source: string): [Token, string] {
+    const quoteIndex = LEFT_QUOTES.indexOf(source[0])
+    const rightQuote = RIGHT_QUOTES[quoteIndex]
+    const stopReg = new RegExp(rightQuote ? `${rightQuote}([\s]+|$)|$` : `[\s]+|$`)
+    const capture = stopReg.exec(source)!
+    const content = source.slice(0, capture.index)
+    source = source.slice(capture.index + capture[0].length)
+    const token: Token = {
+      content,
+      quotes: rightQuote
+        ? [source[0], capture[0] === rightQuote ? rightQuote : '']
+        : undefined,
+    }
+    return [token, source]
   }
 }
