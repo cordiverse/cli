@@ -13,7 +13,7 @@ const isArray = Array.isArray as (arg: any) => arg is readonly any[]
 
 export type Transform<S = never, T = any> = (source: string, session: S) => T
 
-export interface DomainConfig<T = any, S = never> {
+export interface DomainConfig<S = never, T = any> {
   transform?: Transform<S, T>
   greedy?: boolean
   numeric?: boolean
@@ -28,12 +28,14 @@ export interface Domains {
   posint: number
   natural: number
   date: Date
+  time: Date
+  datetime: Date
 }
 
 export type Type<S = never> = keyof Domains | RegExp | readonly string[] | Transform<S> | DomainConfig<S>
 
 export default class Iroha<S = never> extends Service {
-  _builtin: Dict<DomainConfig<any, S>> = {}
+  _builtin: Dict<DomainConfig<S>> = {}
 
   constructor(ctx: Context) {
     super(ctx, 'iroha')
