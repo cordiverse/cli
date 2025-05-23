@@ -16,15 +16,15 @@ const isArray = Array.isArray as (arg: any) => arg is readonly any[]
 
 const BRACKET_REGEXP = /<([^<>]+)>|\[([^\[\]]+)\]/g
 
-export interface Type<S = never, T = any> {
+export interface Type<out T = any> {
   name?: string
-  parse: Type.Parse<S, T>
+  parse: Type.Parse<T>
   greedy?: boolean
   numeric?: boolean
 }
 
 export namespace Type {
-  export type Parse<S = never, T = any> = (source: string, session: S) => T
+  export type Parse<T = any> = (source: string) => T
 }
 
 export interface Types {
@@ -40,16 +40,15 @@ export interface Types {
   datetime: Date
 }
 
-export type TypeInit<S = never> =
-  // | keyof Types
+export type TypeInit =
   | RegExp
   | readonly string[]
-  | Type.Parse<S>
-  | Type<S>
+  | Type.Parse
+  | Type
 
 export type ArgKind = 'argument' | 'option'
 
-export interface ArgDecl<U = never> extends Type<U> {
+export interface ArgDecl extends Type {
   kind: ArgKind
   name: string
   variadic: boolean
@@ -68,10 +67,10 @@ export interface ParserResult {
 const LEFT_QUOTES = `"'“‘`
 const RIGHT_QUOTES = `"'”’`
 
-export default class Iroha<U = never> extends Service {
-  _builtin: Dict<Type<U> | undefined> = {}
-  _commands = new DisposableList<Command<U>>()
-  _aliases: Dict<Command<U> | undefined> = Object.create(null)
+export default class Iroha extends Service {
+  _builtin: Dict<Type | undefined> = {}
+  _commands = new DisposableList<Command>()
+  _aliases: Dict<Command | undefined> = Object.create(null)
 
   constructor(ctx: Context) {
     super(ctx, 'iroha')
@@ -80,45 +79,45 @@ export default class Iroha<U = never> extends Service {
     this.define('text', source => source, { greedy: true })
     this.define('boolean', () => true)
 
-    this.define('number', (source, session) => {
+    this.define('number', (source) => {
       const value = +source
       if (Number.isFinite(value)) return value
       throw new Error('internal.invalid-number')
     }, { numeric: true })
 
-    this.define('integer', (source, session) => {
+    this.define('integer', (source) => {
       const value = +source
       if (value * 0 === 0 && Math.floor(value) === value) return value
       throw new Error('internal.invalid-integer')
     }, { numeric: true })
 
-    this.define('posint', (source, session) => {
+    this.define('posint', (source) => {
       const value = +source
       if (value * 0 === 0 && Math.floor(value) === value && value > 0) return value
       throw new Error('internal.invalid-posint')
     }, { numeric: true })
 
-    this.define('natural', (source, session) => {
+    this.define('natural', (source) => {
       const value = +source
       if (value * 0 === 0 && Math.floor(value) === value && value >= 0) return value
       throw new Error('internal.invalid-natural')
     }, { numeric: true })
 
-    this.define('date', (source, session) => {
+    this.define('date', (source) => {
       const timestamp = Time.parseDate(source)
       if (+timestamp) return timestamp
       throw new Error('internal.invalid-date')
     })
   }
 
-  define<K extends keyof Types>(name: K, parse: Type.Parse<U, Types[K]>, options?: Omit<Type<U, Types[K]>, 'parse'>) {
+  define<K extends keyof Types>(name: K, parse: Type.Parse<Types[K]>, options?: Omit<Type<Types[K]>, 'parse'>) {
     return this.ctx.effect(() => {
       this._builtin[name] = { name, ...options, parse }
       return () => delete this._builtin[name]
     })
   }
 
-  parseType(type: any): Type<U> {
+  parseType(type: any): Type {
     if (typeof type === 'string') {
       type = this._builtin[type]
       if (!type) throw new Error(`unknown type "${type}"`)
@@ -141,9 +140,9 @@ export default class Iroha<U = never> extends Service {
     return type ?? { parse: source => source }
   }
 
-  parseArgDecls(source: string, kind: ArgKind): ArgDecl<U>[] {
+  parseArgDecls(source: string, kind: ArgKind): ArgDecl[] {
     let cap: RegExpExecArray | null
-    const args: ArgDecl<U>[] = []
+    const args: ArgDecl[] = []
     while ((cap = BRACKET_REGEXP.exec(source))) {
       let rawName = cap[1]
       let variadic = false

@@ -1,8 +1,9 @@
 import { Context, DisposableList, Service } from 'cordis'
 import { camelize, defineProperty, Dict } from 'cosmokit'
-import { ArgDecl, Token, TypeInit, Types } from '.'
+import { ArgDecl, TypeInit, Types } from '.'
 
 export interface CommandConfig {
+  unknownNegative?: 'option' | 'string'
   unknownOption?: 'allow' | 'error'
 }
 
@@ -21,10 +22,10 @@ export interface TypedOptionConfig<T extends TypeInit> extends OptionConfig<T> {
   type: T
 }
 
-export interface Option<U> extends Omit<OptionConfig, 'type'> {
+export interface Option extends Omit<OptionConfig, 'type'> {
   source: string
   names: string[]
-  decl?: ArgDecl<U>
+  decl?: ArgDecl
 }
 
 export interface Argv {
@@ -61,13 +62,13 @@ type ParseOption<S extends string, T, K extends string = never> =
     : never
   : { [P in K]?: boolean }
 
-export class Command<U, A extends any[] = any[], O extends {} = {}> {
-  _params: ArgDecl<U>[] = []
-  _optionList = new DisposableList<Option<U>>()
-  _optionDict: Dict<Option<U> | undefined> = Object.create(null)
+export class Command<in U = never, A extends any[] = any[], O extends {} = {}> {
+  _params: ArgDecl[] = []
+  _optionList = new DisposableList<Option>()
+  _optionDict: Dict<Option | undefined> = Object.create(null)
   _aliases: Dict<CommandAlias> = Object.create(null)
 
-  parent?: Command<U>
+  parent?: Command
 
   constructor(public ctx: Context, public config: CommandConfig) {
     defineProperty(this, Service.tracker, {
@@ -90,10 +91,10 @@ export class Command<U, A extends any[] = any[], O extends {} = {}> {
     })
   }
 
-  option<S extends string>(def: S, config: TypedOptionConfig<RegExp>): Command<S, A, O & ParseOption<S, string>>
-  option<S extends string, R>(def: S, config: TypedOptionConfig<(source: string) => R>): Command<S, A, O & ParseOption<S, R>>
-  option<S extends string, R extends string>(def: S, config: TypedOptionConfig<readonly R[]>): Command<S, A, O & ParseOption<S, R>>
-  option<S extends string>(def: S, config: OptionConfig): Command<S, A, O & ParseOption<S, string>>
+  option<S extends string>(def: S, config: TypedOptionConfig<RegExp>): Command<U, A, O & ParseOption<S, string>>
+  option<S extends string, R>(def: S, config: TypedOptionConfig<(source: string) => R>): Command<U, A, O & ParseOption<S, R>>
+  option<S extends string, R extends string>(def: S, config: TypedOptionConfig<readonly R[]>): Command<U, A, O & ParseOption<S, R>>
+  option<S extends string>(def: S, config: OptionConfig): Command<U, A, O & ParseOption<S, string>>
   option(source: string, config: OptionConfig) {
     let def = source.trimStart()
     let cap: RegExpExecArray | null
@@ -117,7 +118,7 @@ export class Command<U, A extends any[] = any[], O extends {} = {}> {
       }
       Object.assign(decl, this.ctx.iroha.parseType(type))
     }
-    const option: Option<U> = {
+    const option: Option = {
       ...rest,
       names,
       source,
@@ -142,12 +143,11 @@ export class Command<U, A extends any[] = any[], O extends {} = {}> {
     return this
   }
 
-  parse(source: string, session: U, args: any[] = [], options: Dict = {}): Argv {
+  parse(source: string, args: any[] = [], options: Dict = {}): Argv {
     let variadic: ArgDecl | undefined
-    let token: Token
-    let option: Option<U> | undefined
+    let option: Option | undefined
     let names: string | string[]
-    let param: any
+    let rest: string
     let content: string
     let quotes: [string, string] | undefined
 
@@ -159,7 +159,7 @@ export class Command<U, A extends any[] = any[], O extends {} = {}> {
 
       // greedy argument
       if (decl.greedy) {
-        args.push(decl.parse(source, session))
+        args.push(decl.parse(source))
         break
       }
 
@@ -168,8 +168,8 @@ export class Command<U, A extends any[] = any[], O extends {} = {}> {
       // 2. quoted tokens
       // 3. numeric tokens at numeric type
       ;[{ content, quotes }, source] = this.ctx.iroha.parseToken(source)
-      if (content[0] !== '-' || quotes || (+content) * 0 === 0 && decl.numeric) {
-        args.push(decl.parse(content, session))
+      if (content[0] !== '-' || quotes || (+content) * 0 === 0 && this.config.unknownNegative !== 'option' && !this._optionDict[content.slice(1)]) {
+        args.push(decl.parse(content))
         continue
       }
 
@@ -185,33 +185,32 @@ export class Command<U, A extends any[] = any[], O extends {} = {}> {
         if (content.charCodeAt(j) === 61) break
       }
 
-      const name = content.slice(i, j)
-      if (!this._optionDict[name]) {
-        args.push(decl.parse(content, session))
-        continue
-      }
       // if (i > 1 && name.startsWith('no-') && !this._optionDict[name]) {
       //   options[camelCase(name.slice(3))] = false
       //   continue
       // }
+      const name = content.slice(i, j)
       names = i > 1 ? [name] : name
-      param = content.slice(++j)
-      option = this._optionDict[names[names.length - 1]]
+      content = content.slice(++j)
 
       // peak parameter from next token
-      if (!param) {
-        if (option?.decl?.greedy) {
-          param = source
-          source = ''
-        } else if (option?.decl) {
-          [token, source] = this.ctx.iroha.parseToken(source)
-          param = token.content
-        } else if (!option && source && this.config.unknownOption === 'allow') {
-          let rest: string
+      option = this._optionDict[names[names.length - 1]]
+      quotes = undefined
+      if (!content) {
+        if (option) {
+          if (option.decl?.greedy) {
+            content = source
+            source = ''
+          } else if (option.decl) {
+            [{ content, quotes }, source] = this.ctx.iroha.parseToken(source)
+          }
+        } else if (source && this.config.unknownOption === 'allow') {
           [{ content, quotes }, rest] = this.ctx.iroha.parseToken(source)
-          if (content[0] !== '-' || quotes) {
-            param = content
+          if (content[0] !== '-' || quotes || (+content) * 0 === 0 && this.config.unknownNegative !== 'option' && !this._optionDict[content.slice(1)]) {
             source = rest
+          } else {
+            content = ''
+            quotes = undefined
           }
         }
       }
@@ -220,14 +219,14 @@ export class Command<U, A extends any[] = any[], O extends {} = {}> {
       for (let j = 0; j < names.length; j++) {
         const name = names[j]
         const option = this._optionDict[name]
-        content = j === names.length - 1 ? param : ''
+        const param = j === names.length - 1 ? content : ''
         if (option) {
-          const value = option.decl ? option.decl.parse(content, session) : true
+          const value = option.decl ? option.decl.parse(param) : true
           for (const key of option.names) {
             options[key] = value
           }
         } else if (this.config.unknownOption === 'allow') {
-          options[camelize(name)] = j === names.length - 1 ? param : true // quoted ""
+          options[camelize(name)] = j === names.length - 1 || quotes ? param : true
         } else {
           throw new TypeError(`unknown option "${name}"`)
         }
