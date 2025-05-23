@@ -3,9 +3,6 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "lib",
-    "noImplicitAny": false,
-    "noImplicitThis": false,
-    "strictFunctionTypes": false,
   },
   "include": [
     "src",
