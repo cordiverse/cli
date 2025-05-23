@@ -1,5 +1,8 @@
-import { Context, Service } from 'cordis'
+import { Context, DisposableList, Service } from 'cordis'
 import { Dict, Time } from 'cosmokit'
+import { Command } from './command'
+
+export * from './command'
 
 declare module 'cordis' {
   interface Context {
@@ -11,9 +14,12 @@ declare module 'cordis' {
 // it never got fixed so we have to do this
 const isArray = Array.isArray as (arg: any) => arg is readonly any[]
 
+const BRACKET_REGEXP = /<([^<>]+)>|\[([^\[\]]+)\]/g
+
 export type Transform<S = never, T = any> = (source: string, session: S) => T
 
 export interface DomainConfig<S = never, T = any> {
+  name?: string
   transform?: Transform<S, T>
   greedy?: boolean
   numeric?: boolean
@@ -34,8 +40,17 @@ export interface Domains {
 
 export type Type<S = never> = keyof Domains | RegExp | readonly string[] | Transform<S> | DomainConfig<S>
 
-export default class Iroha<S = never> extends Service {
-  _builtin: Dict<DomainConfig<S>> = {}
+export interface ArgDecl {
+  name: string
+  type: DomainConfig
+  variadic: boolean
+  required: boolean
+}
+
+export default class Iroha<U = never> extends Service {
+  _builtin: Dict<DomainConfig<U> | undefined> = {}
+  _commands = new DisposableList<Command<U>>()
+  _aliases: Dict<Command<U>> = Object.create(null)
 
   constructor(ctx: Context) {
     super(ctx, 'iroha')
@@ -75,15 +90,19 @@ export default class Iroha<S = never> extends Service {
     })
   }
 
-  domain<K extends keyof Domains>(name: K, transform: Transform<S, Domains[K]>, options?: DomainConfig<S, Domains[K]>) {
+  domain<K extends keyof Domains>(name: K, transform: Transform<U, Domains[K]>, options?: DomainConfig<U, Domains[K]>) {
     return this.ctx.effect(() => {
-      this._builtin[name] = { ...options, transform }
+      this._builtin[name] = { name, ...options, transform }
       return () => delete this._builtin[name]
     })
   }
 
-  resolveDomain(type?: Type<S>) {
-    if (typeof type === 'function') {
+  parseType(type: any): DomainConfig<U> {
+    if (typeof type === 'string') {
+      const domain = this._builtin[type]
+      if (!domain) throw new Error(`unknown type "${type}"`)
+      return domain
+    } else if (typeof type === 'function') {
       return { transform: type }
     } else if (type instanceof RegExp) {
       const transform = (source: string) => {
@@ -97,9 +116,28 @@ export default class Iroha<S = never> extends Service {
         throw new Error()
       }
       return { transform }
-    } else if (typeof type === 'object' || typeof type === 'undefined') {
-      return type ?? {}
     }
-    return this._builtin[type] ?? {}
+    return type ?? {}
+  }
+
+  parseDecl(source: string): ArgDecl[] {
+    let cap: RegExpExecArray | null
+    const args: ArgDecl[] = []
+    while ((cap = BRACKET_REGEXP.exec(source))) {
+      let rawName = cap[1]
+      let variadic = false
+      if (rawName.startsWith('...')) {
+        rawName = rawName.slice(3)
+        variadic = true
+      }
+      const [name, rawType] = rawName.split(':')
+      args.push({
+        name,
+        type: this.parseType(rawType),
+        variadic,
+        required: cap[0][0] === '<',
+      })
+    }
+    return args
   }
 }
