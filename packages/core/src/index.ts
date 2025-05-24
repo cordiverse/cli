@@ -1,6 +1,7 @@
 import { Context, DisposableList, Service } from 'cordis'
 import { Dict, hyphenate, Time } from 'cosmokit'
 import { Command, CommandConfig, ParseArgument } from './command'
+import { Input } from './parser'
 
 export * from './command'
 
@@ -63,14 +64,6 @@ export interface Param extends Type {
   variadic: boolean
   required: boolean
 }
-
-export interface Token {
-  content: string
-  quotes?: [string, string]
-}
-
-const LEFT_QUOTES = `"'“‘`
-const RIGHT_QUOTES = `"'”’`
 
 export namespace Iroha {
   export interface Config {
@@ -173,22 +166,6 @@ export class Iroha extends Service {
     return args
   }
 
-  parseToken(input: string): [Token, string] {
-    const quoteIndex = LEFT_QUOTES.indexOf(input[0])
-    const rightQuote = RIGHT_QUOTES[quoteIndex]
-    const stopReg = new RegExp(rightQuote ? `${rightQuote}([\\s]+|$)|$` : `[\\s]+|$`)
-    const capture = stopReg.exec(input)!
-    const content = input.slice(rightQuote ? 1 : 0, capture.index)
-    input = input.slice(capture.index + capture[0].length)
-    const token: Token = {
-      content,
-      quotes: rightQuote
-        ? [LEFT_QUOTES[quoteIndex], capture[0] === rightQuote ? rightQuote : '']
-        : undefined,
-    }
-    return [token, input]
-  }
-
   command<S extends string>(source: S, config?: CommandConfig): Command<ParseArgument<S>>
   command<S extends string>(source: S, desc: string, config?: CommandConfig): Command<ParseArgument<S>>
   command(source: string, ...args: [CommandConfig?] | [string, CommandConfig?]) {
@@ -200,11 +177,9 @@ export class Iroha extends Service {
     return command
   }
 
-  execute(input: string, args: any[] = [], options: Dict = {}) {
-    input = input.trimStart()
-    if (!input) throw new Error('no command provided')
-    let token: Token
-    [token, input] = this.parseToken(input)
+  execute(input: Input, args: any[] = [], options: Dict = {}) {
+    if (input.isEmpty()) throw new Error('no command provided')
+    const token = input.next()
     const command = this._aliases[token.content]
     if (!command) throw new Error(`command "${token.content}" not found`)
     const argv = command.parse(input, args, options)

@@ -1,6 +1,7 @@
 import { Context, DisposableList, Service } from 'cordis'
 import { camelize, defineProperty, Dict } from 'cosmokit'
 import { Param, ResolveTypeInit, TypeInit, Types } from '.'
+import { Input } from './parser'
 
 export interface CommandConfig {
   unknownNegative?: 'option' | 'string'
@@ -195,12 +196,10 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
     return this
   }
 
-  parse(input: string, args: any[] = [], options: Dict = {}): Argv {
+  parse(input: Input, args: any[] = [], options: Dict = {}): Argv {
     let variadic: Param | undefined
     let option: Option | undefined
     let names: string | string[]
-    let rest: string
-    let content: string
     let quotes: [string, string] | undefined
     const _options: Dict = Object.create(null)
 
@@ -210,7 +209,7 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
         || (+content) * 0 === 0 && this.config.unknownNegative !== 'option' && !this._optionDict[content.slice(1)]
     }
 
-    while (input) {
+    while (!input.isEmpty()) {
       // variadic argument
       const param = this._arguments[args.length] || variadic
       if (param.variadic) variadic = param
@@ -218,7 +217,7 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
 
       // greedy argument
       if (param.greedy) {
-        args.push(param.parse(input))
+        args.push(param.parse(input.drain()))
         break
       }
 
@@ -226,7 +225,7 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
       // 1. tokens not starting with `-`
       // 2. quoted tokens
       // 3. numeric tokens at numeric type
-      ;[{ content, quotes }, input] = this.ctx.iroha.parseToken(input)
+      let { content, quotes } = input.next()
       if (isParam(content)) {
         args.push(param.parse(content))
         continue
@@ -254,10 +253,11 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
         option = this._optionDict[names[names.length - 1]]
         if (option) {
           if (option.param?.greedy) {
-            content = input
-            input = ''
+            content = input.drain()
           } else if (option.param) {
-            [{ content, quotes }, input] = this.ctx.iroha.parseToken(input)
+            const token = input.next()
+            content = token.content
+            quotes = token.quotes
           }
         } else if (
           i > 1
@@ -266,13 +266,13 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
         ) {
           // explicit set undefined to skip default
           _options[option.source] = undefined
-        } else if (input && this.config.unknownOption === 'allow') {
-          [{ content, quotes }, rest] = this.ctx.iroha.parseToken(input)
-          if (isParam(content)) {
-            input = rest
+        } else if (!input.isEmpty() && this.config.unknownOption === 'allow') {
+          const token = input.next()
+          if (isParam(token.content)) {
+            content = token.content
+            quotes = token.quotes
           } else {
-            content = ''
-            quotes = undefined
+            input.unshift(token)
           }
         }
       }
