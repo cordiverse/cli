@@ -8,3 +8,6 @@ globals:
 
 extends:
   - '@cordisjs/eslint-config'
+
+rules:
+  max-len: [warn, 120]

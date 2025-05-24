@@ -1,6 +1,6 @@
 import { Context, DisposableList, Service } from 'cordis'
 import { camelize, defineProperty, Dict } from 'cosmokit'
-import { ArgDecl, TypeInit, Types } from '.'
+import { Param, ResolveTypeInit, TypeInit, Types } from '.'
 
 export interface CommandConfig {
   unknownNegative?: 'option' | 'string'
@@ -25,7 +25,7 @@ export interface TypedOptionConfig<T extends TypeInit> extends OptionConfig<T> {
 export interface Option extends Omit<OptionConfig, 'type'> {
   source: string
   names: string[]
-  decl?: ArgDecl
+  decl?: Param
 }
 
 export interface Argv {
@@ -33,48 +33,84 @@ export interface Argv {
   options: Dict
 }
 
-type TakeUntil<S extends string, D extends string, O extends string = ''> =
+export type TakeUntil<S extends string, D extends string, O extends string = ''> =
   | S extends `${infer C}${infer S}`
   ? C extends D ? [O, S, C] : TakeUntil<S, D, `${O}${C}`>
-  : [O, S, never]
+  : [O, S]
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-type ParseOptionType<S extends string, T> =
-  | TakeUntil<S, ':' | '>' | ']'> extends [string, infer S extends string, ':']
-  ? | TakeUntil<S, '>' | ']'> extends [infer K extends keyof Types, string, any]
-    ? Types[K]
-    : never
-  : T
+export type ParseParamType<S extends string, D extends string, T> =
+  | TakeUntil<S, ':' | D> extends [string, infer S extends string, infer C]
+  ? | C extends ':'
+    ? | TakeUntil<S, D> extends [infer K extends keyof Types, infer S extends string, D]
+      ? [Types[K], S]
+      : [] // use [] instead of never
+    : C extends D
+    ? [T, S]
+    : []
+  : []
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-type ParseOption<S extends string, T, K extends string = never> =
+export type ParseOptionType<S extends string, D extends string, T> =
+  | ParseParamType<S, D, T> extends [infer T, string]
+  ? S extends `..${string}` ? T[] : T
+  : never
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type ParseOption<S extends string, T, K extends string = never> =
   | S extends `${infer C}${infer S}`
   ? | C extends ' ' | ',' | '-'
     ? ParseOption<S, T, K>
-    : C extends '<' | '['
-    ? | ParseOptionType<S, T> extends infer T
-      ? | (S extends `..${string}` ? T[] : T) extends infer T
-        ? | C extends '<'
-          ? { [P in K]: T }
-          : { [P in K]?: T }
-        : never
-      : never
-    : TakeUntil<S, ' ' | ',', C> extends [infer P extends string, infer R extends string, any]
+    : C extends '<'
+    ? { [P in K]: ParseOptionType<S, '>', T> }
+    : C extends '['
+    ? { [P in K]?: ParseOptionType<S, ']', T> }
+    : TakeUntil<S, ' ' | ',', C> extends [infer P extends string, infer R extends string, any?]
     ? ParseOption<R, T, K | camelize<P>>
     : never
   : { [P in K]?: boolean }
 
-export class Command<in U = never, A extends any[] = any[], O extends {} = {}> {
-  _arguments: ArgDecl[] = []
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type ParseArgument<S extends string, A extends any[] = []> =
+  | S extends `${infer C}${infer S}`
+  ? | C extends '<'
+    ? | ParseParamType<S, '>', string> extends [infer T, infer R extends string]
+      ? | S extends `..${string}`
+        ? [...A, ...T[]]
+        : ParseArgument<R, [...A, T]>
+      : never
+    : C extends '['
+    ? | ParseParamType<S, ']', string> extends [infer T, infer R extends string]
+      ? | S extends `..${string}`
+        ? [...A, ...T[]]
+        : ParseArgument<R, [...A, T?]>
+      : never
+    : ParseArgument<S, A>
+  : A
+
+export class Command<A extends any[] = any[], O extends {} = {}> {
+  _arguments: Param[] = []
   _optionList = new DisposableList<Option>()
   _optionDict: Dict<Option | undefined> = Object.create(null)
   _aliases: Dict<CommandAlias> = Object.create(null)
 
   parent?: Command
+  dispose: () => void
 
-  constructor(public ctx: Context, public config: CommandConfig) {
+  constructor(public ctx: Context, name: string, source: string, desc: string, public config: CommandConfig) {
     defineProperty(this, Service.tracker, {
       property: 'ctx',
+    })
+    const self = this
+    this.dispose = ctx.effect(function* () {
+      yield ctx.iroha._commands.push(self)
+      self._aliases[name] = {}
+      ctx.iroha._aliases[name] = self
+      yield () => {
+        for (const name in self._aliases) {
+          delete ctx.iroha._aliases[name]
+        }
+      }
     })
   }
 
@@ -93,11 +129,21 @@ export class Command<in U = never, A extends any[] = any[], O extends {} = {}> {
     })
   }
 
-  option<S extends string>(def: S, config: TypedOptionConfig<RegExp>): Command<U, A, O & ParseOption<S, string>>
-  option<S extends string, R>(def: S, config: TypedOptionConfig<(source: string) => R>): Command<U, A, O & ParseOption<S, R>>
-  option<S extends string, R extends string>(def: S, config: TypedOptionConfig<readonly R[]>): Command<U, A, O & ParseOption<S, R>>
-  option<S extends string>(def: S, config?: OptionConfig): Command<U, A, O & ParseOption<S, string>>
-  option(source: string, config: OptionConfig) {
+  option<S extends string, const T extends TypeInit = undefined>(
+    def: S,
+    config?: OptionConfig<T>,
+  ): Command<A, O & ParseOption<S, ResolveTypeInit<T>>>
+
+  option<S extends string, const T extends TypeInit = undefined>(
+    def: S,
+    desc: string,
+    config?: OptionConfig<T>,
+  ): Command<A, O & ParseOption<S, ResolveTypeInit<T>>>
+
+  option(source: string, ...args: [OptionConfig?] | [string, OptionConfig?]) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const desc = typeof args[0] === 'string' ? args.shift() as string : ''
+    const { type, ...rest } = (args[0] || {}) as OptionConfig
     let def = source.trimStart()
     let cap: RegExpExecArray | null
     const names: string[] = []
@@ -108,12 +154,11 @@ export class Command<in U = never, A extends any[] = any[], O extends {} = {}> {
       def = def.slice(cap.index + cap[0].length)
       names.push(camelize(cap[2]))
     }
-    const decls = this.ctx.iroha.parseArgDecls(def, 'option')
+    const decls = this.ctx.iroha.parseParams(def, 'option')
     if (decls.length > 1) {
       throw new TypeError('option accepts at most one argument')
     }
     const decl = decls[0]
-    const { type, ...rest } = config
     if (type) {
       if (!decl) {
         throw new TypeError('option with type requires argument')
@@ -146,13 +191,19 @@ export class Command<in U = never, A extends any[] = any[], O extends {} = {}> {
   }
 
   parse(source: string, args: any[] = [], options: Dict = {}): Argv {
-    let variadic: ArgDecl | undefined
+    let variadic: Param | undefined
     let option: Option | undefined
     let names: string | string[]
     let rest: string
     let content: string
     let quotes: [string, string] | undefined
     const _options: Dict = Object.create(null)
+
+    const isParam = (content: string) => {
+      return content[0] !== '-'
+        || quotes
+        || (+content) * 0 === 0 && this.config.unknownNegative !== 'option' && !this._optionDict[content.slice(1)]
+    }
 
     while (source) {
       // variadic argument
@@ -171,7 +222,7 @@ export class Command<in U = never, A extends any[] = any[], O extends {} = {}> {
       // 2. quoted tokens
       // 3. numeric tokens at numeric type
       ;[{ content, quotes }, source] = this.ctx.iroha.parseToken(source)
-      if (content[0] !== '-' || quotes || (+content) * 0 === 0 && this.config.unknownNegative !== 'option' && !this._optionDict[content.slice(1)]) {
+      if (isParam(content)) {
         args.push(decl.parse(content))
         continue
       }
@@ -203,12 +254,16 @@ export class Command<in U = never, A extends any[] = any[], O extends {} = {}> {
           } else if (option.decl) {
             [{ content, quotes }, source] = this.ctx.iroha.parseToken(source)
           }
-        } else if (i > 1 && content.slice(i, j).startsWith('no-') && (option = this._optionDict[camelize(content.slice(i + 3, j))])) {
+        } else if (
+          i > 1
+          && content.slice(i, j).startsWith('no-')
+          && (option = this._optionDict[camelize(content.slice(i + 3, j))])
+        ) {
           // explicit set undefined to skip default
           _options[option.source] = undefined
         } else if (source && this.config.unknownOption === 'allow') {
           [{ content, quotes }, rest] = this.ctx.iroha.parseToken(source)
-          if (content[0] !== '-' || quotes || (+content) * 0 === 0 && this.config.unknownNegative !== 'option' && !this._optionDict[content.slice(1)]) {
+          if (isParam(content)) {
             source = rest
           } else {
             content = ''
@@ -239,7 +294,8 @@ export class Command<in U = never, A extends any[] = any[], O extends {} = {}> {
 
     // check argument count
     if (args.length < this._arguments.length) {
-      throw new TypeError(`missing arguments: ${this._arguments.slice(args.length).map(arg => `"${arg.name}"`).join(', ')}`)
+      const extra = this._arguments.slice(args.length)
+      throw new TypeError(`missing arguments: ${extra.map(arg => `"${arg.name}"`).join(', ')}`)
     }
 
     // assign option values with default

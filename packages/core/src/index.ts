@@ -1,6 +1,6 @@
 import { Context, DisposableList, Service } from 'cordis'
-import { Dict, Time } from 'cosmokit'
-import { Command } from './command'
+import { Dict, hyphenate, Time } from 'cosmokit'
+import { Command, CommandConfig, ParseArgument } from './command'
 
 export * from './command'
 
@@ -16,7 +16,7 @@ const isArray = Array.isArray as (arg: any) => arg is readonly any[]
 
 const BRACKET_REGEXP = /<([^<>]+)>|\[([^\[\]]+)\]/g
 
-export interface Type<out T = any> {
+export interface Type<T = any> {
   name?: string
   parse: Type.Parse<T>
   greedy?: boolean
@@ -45,11 +45,20 @@ export type TypeInit =
   | readonly string[]
   | Type.Parse
   | Type
+  | undefined
 
-export type ArgKind = 'argument' | 'option'
+export type ResolveTypeInit<T extends TypeInit> =
+  | T extends RegExp ? string
+  : T extends readonly (infer T)[] ? T
+  : T extends Type.Parse<infer T> ? T
+  : T extends Type<infer T> ? T
+  : T extends undefined ? string // default type
+  : never
 
-export interface ArgDecl extends Type {
-  kind: ArgKind
+export type ParamKind = 'argument' | 'option'
+
+export interface Param extends Type {
+  kind: ParamKind
   name: string
   variadic: boolean
   required: boolean
@@ -140,9 +149,9 @@ export default class Iroha extends Service {
     return type ?? { parse: source => source }
   }
 
-  parseArgDecls(source: string, kind: ArgKind): ArgDecl[] {
+  parseParams(source: string, kind: ParamKind): Param[] {
     let cap: RegExpExecArray | null
-    const args: ArgDecl[] = []
+    const args: Param[] = []
     while ((cap = BRACKET_REGEXP.exec(source))) {
       let rawName = cap[1]
       let variadic = false
@@ -176,5 +185,16 @@ export default class Iroha extends Service {
         : undefined,
     }
     return [token, source]
+  }
+
+  command<S extends string>(source: S, config?: CommandConfig): Command<ParseArgument<S>>
+  command<S extends string>(source: S, desc: string, config?: CommandConfig): Command<ParseArgument<S>>
+  command(source: string, ...args: [CommandConfig?] | [string, CommandConfig?]) {
+    const desc = typeof args[0] === 'string' ? args.shift() as string : ''
+    const config = (args[0] || {}) as CommandConfig
+    const [path] = source.split(/(?=[\s<\[])/, 1)
+    source = source.slice(path.length).trimStart()
+    const command = new Command(this.ctx, hyphenate(path), source, desc, config)
+    return command
   }
 }
