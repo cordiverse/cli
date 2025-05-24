@@ -12,6 +12,9 @@ export interface CommandAlias {
   args?: any[]
 }
 
+export type CommandAction<A extends any[] = any[], O extends {} = {}> =
+  | ((argv: Argv<A, O>, ...args: A) => string | void | Promise<string | void>)
+
 export interface OptionConfig<T extends TypeInit = TypeInit> {
   type?: T
   default?: any
@@ -25,12 +28,13 @@ export interface TypedOptionConfig<T extends TypeInit> extends OptionConfig<T> {
 export interface Option extends Omit<OptionConfig, 'type'> {
   source: string
   names: string[]
-  decl?: Param
+  param?: Param
 }
 
-export interface Argv {
-  args: any[]
-  options: Dict
+export interface Argv<A extends any[] = any[], O extends {} = {}> {
+  args: A
+  options: O
+  command: Command<A, O>
 }
 
 export type TakeUntil<S extends string, D extends string, O extends string = ''> =
@@ -93,6 +97,7 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
   _optionList = new DisposableList<Option>()
   _optionDict: Dict<Option | undefined> = Object.create(null)
   _aliases: Dict<CommandAlias> = Object.create(null)
+  _action?: CommandAction
 
   parent?: Command
   dispose: () => void
@@ -154,22 +159,22 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
       def = def.slice(cap.index + cap[0].length)
       names.push(camelize(cap[2]))
     }
-    const decls = this.ctx.iroha.parseParams(def, 'option')
-    if (decls.length > 1) {
+    const params = this.ctx.iroha.parseParams(def, 'option')
+    if (params.length > 1) {
       throw new TypeError('option accepts at most one argument')
     }
-    const decl = decls[0]
+    const param = params[0]
     if (type) {
-      if (!decl) {
+      if (!param) {
         throw new TypeError('option with type requires argument')
       }
-      Object.assign(decl, this.ctx.iroha.parseType(type))
+      Object.assign(param, this.ctx.iroha.parseType(type))
     }
     const option: Option = {
       ...rest,
       names,
       source,
-      decl,
+      param,
     }
     const conflicts = names.filter(name => this._optionDict[name])
     if (conflicts.length) {
@@ -190,7 +195,7 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
     return this
   }
 
-  parse(source: string, args: any[] = [], options: Dict = {}): Argv {
+  parse(input: string, args: any[] = [], options: Dict = {}): Argv {
     let variadic: Param | undefined
     let option: Option | undefined
     let names: string | string[]
@@ -205,15 +210,15 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
         || (+content) * 0 === 0 && this.config.unknownNegative !== 'option' && !this._optionDict[content.slice(1)]
     }
 
-    while (source) {
+    while (input) {
       // variadic argument
-      const decl = this._arguments[args.length] || variadic
-      if (decl.variadic) variadic = decl
-      if (!decl) throw new TypeError('too many arguments')
+      const param = this._arguments[args.length] || variadic
+      if (param.variadic) variadic = param
+      if (!param) throw new TypeError('too many arguments')
 
       // greedy argument
-      if (decl.greedy) {
-        args.push(decl.parse(source))
+      if (param.greedy) {
+        args.push(param.parse(input))
         break
       }
 
@@ -221,9 +226,9 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
       // 1. tokens not starting with `-`
       // 2. quoted tokens
       // 3. numeric tokens at numeric type
-      ;[{ content, quotes }, source] = this.ctx.iroha.parseToken(source)
+      ;[{ content, quotes }, input] = this.ctx.iroha.parseToken(input)
       if (isParam(content)) {
-        args.push(decl.parse(content))
+        args.push(param.parse(content))
         continue
       }
 
@@ -248,11 +253,11 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
       if (!content) {
         option = this._optionDict[names[names.length - 1]]
         if (option) {
-          if (option.decl?.greedy) {
-            content = source
-            source = ''
-          } else if (option.decl) {
-            [{ content, quotes }, source] = this.ctx.iroha.parseToken(source)
+          if (option.param?.greedy) {
+            content = input
+            input = ''
+          } else if (option.param) {
+            [{ content, quotes }, input] = this.ctx.iroha.parseToken(input)
           }
         } else if (
           i > 1
@@ -261,10 +266,10 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
         ) {
           // explicit set undefined to skip default
           _options[option.source] = undefined
-        } else if (source && this.config.unknownOption === 'allow') {
-          [{ content, quotes }, rest] = this.ctx.iroha.parseToken(source)
+        } else if (input && this.config.unknownOption === 'allow') {
+          [{ content, quotes }, rest] = this.ctx.iroha.parseToken(input)
           if (isParam(content)) {
-            source = rest
+            input = rest
           } else {
             content = ''
             quotes = undefined
@@ -276,16 +281,16 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
       for (let j = 0; j < names.length; j++) {
         const name = names[j]
         const option = this._optionDict[name]
-        const param = j === names.length - 1 ? content : ''
+        const _content = j === names.length - 1 ? content : ''
         if (option) {
-          const value = option.decl ? option.decl.parse(param) : true
-          if (option.decl?.variadic) {
+          const value = option.param ? option.param.parse(_content) : true
+          if (option.param?.variadic) {
             (_options[option.source] ??= []).push(value)
           } else {
             _options[option.source] = value
           }
         } else if (this.config.unknownOption === 'allow') {
-          options[name] = j === names.length - 1 || quotes ? param : true
+          options[name] = j === names.length - 1 || quotes ? _content : true
         } else {
           throw new TypeError(`unknown option: "${name}"`)
         }
@@ -306,7 +311,7 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
         value = option.default
       }
       if (value === undefined) {
-        if (option.decl?.required) missing.push(option.source)
+        if (option.param?.required) missing.push(option.source)
         continue
       }
       for (const name of option.names) {
@@ -317,6 +322,14 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
       throw new TypeError(`missing options: ${missing.map(source => `"${source}"`).join(', ')}`)
     }
 
-    return { args, options }
+    return { args, options, command: this }
+  }
+
+  action(action: CommandAction<A, O>) {
+    this._action = action as any
+  }
+
+  async execute(argv: Argv<A, O>) {
+    return this._action?.(argv, ...argv.args)
   }
 }

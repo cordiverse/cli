@@ -69,19 +69,21 @@ export interface Token {
   quotes?: [string, string]
 }
 
-export interface ParserResult {
-  tokens: Token[]
-}
-
 const LEFT_QUOTES = `"'“‘`
 const RIGHT_QUOTES = `"'”’`
 
-export default class Iroha extends Service {
+export namespace Iroha {
+  export interface Config {
+    cli?: boolean
+  }
+}
+
+export class Iroha extends Service {
   _builtin: Dict<Type | undefined> = {}
   _commands = new DisposableList<Command>()
   _aliases: Dict<Command | undefined> = Object.create(null)
 
-  constructor(ctx: Context) {
+  constructor(ctx: Context, public config: Iroha.Config = {}) {
     super(ctx, 'iroha')
 
     this.define('string', source => source)
@@ -171,20 +173,20 @@ export default class Iroha extends Service {
     return args
   }
 
-  parseToken(source: string): [Token, string] {
-    const quoteIndex = LEFT_QUOTES.indexOf(source[0])
+  parseToken(input: string): [Token, string] {
+    const quoteIndex = LEFT_QUOTES.indexOf(input[0])
     const rightQuote = RIGHT_QUOTES[quoteIndex]
-    const stopReg = new RegExp(rightQuote ? `${rightQuote}([\s]+|$)|$` : `[\s]+|$`)
-    const capture = stopReg.exec(source)!
-    const content = source.slice(0, capture.index)
-    source = source.slice(capture.index + capture[0].length)
+    const stopReg = new RegExp(rightQuote ? `${rightQuote}([\\s]+|$)|$` : `[\\s]+|$`)
+    const capture = stopReg.exec(input)!
+    const content = input.slice(rightQuote ? 1 : 0, capture.index)
+    input = input.slice(capture.index + capture[0].length)
     const token: Token = {
       content,
       quotes: rightQuote
-        ? [source[0], capture[0] === rightQuote ? rightQuote : '']
+        ? [LEFT_QUOTES[quoteIndex], capture[0] === rightQuote ? rightQuote : '']
         : undefined,
     }
-    return [token, source]
+    return [token, input]
   }
 
   command<S extends string>(source: S, config?: CommandConfig): Command<ParseArgument<S>>
@@ -197,4 +199,17 @@ export default class Iroha extends Service {
     const command = new Command(this.ctx, hyphenate(path), source, desc, config)
     return command
   }
+
+  execute(input: string, args: any[] = [], options: Dict = {}) {
+    input = input.trimStart()
+    if (!input) throw new Error('no command provided')
+    let token: Token
+    [token, input] = this.parseToken(input)
+    const command = this._aliases[token.content]
+    if (!command) throw new Error(`command "${token.content}" not found`)
+    const argv = command.parse(input, args, options)
+    return command.execute(argv)
+  }
 }
+
+export default Iroha
