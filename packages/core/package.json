@@ -36,6 +36,7 @@
     "cordis": "4.0.0-beta.6"
   },
   "dependencies": {
-    "cosmokit": "^1.8.1"
+    "cosmokit": "^1.8.1",
+    "kleur": "^4.1.5"
   }
 }

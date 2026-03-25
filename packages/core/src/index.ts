@@ -3,6 +3,7 @@ import { Dict, hyphenate, Time } from 'cosmokit'
 import type {} from '@cordisjs/plugin-loader'
 import { Command, CommandConfig, ParseArgument } from './command'
 import { Input } from './parser'
+import kleur from 'kleur'
 
 export * from './command'
 export * from './parser'
@@ -10,6 +11,10 @@ export * from './parser'
 declare module 'cordis' {
   interface Context {
     cli: CLI
+  }
+
+  interface Events {
+    'cli/execute'(input: Input): any
   }
 }
 
@@ -191,12 +196,48 @@ export class CLI extends Service {
   }
 
   execute(input: Input, args: any[] = [], options: Dict = {}) {
-    if (input.isEmpty()) throw new Error('no command provided')
+    // bail: plugins (like help) can intercept by returning a result
+    const intercepted = this.ctx.bail('cli/execute', input)
+    if (intercepted !== undefined) return intercepted
+
+    if (input.isEmpty()) return this.formatError('no command provided')
     const token = input.next()
     const command = this._aliases[token.content]
-    if (!command) throw new Error(`command "${token.content}" not found`)
-    const argv = command.parse(input, args, options)
-    return command.execute(argv)
+    if (!command) {
+      return this.formatError(`command "${token.content}" not found`)
+    }
+
+    // Multi-level command resolution (git-style subcommands)
+    let resolved = command
+    let name = token.content
+    while (!input.isEmpty()) {
+      const next = input.next()
+      const subName = `${name}.${next.content}`
+      const sub = this._aliases[subName]
+      if (sub) {
+        resolved = sub
+        name = subName
+      } else {
+        input.unshift(next)
+        break
+      }
+    }
+
+    try {
+      const argv = resolved.parse(input, args, options)
+      return resolved.execute(argv)
+    } catch (error: any) {
+      return this.formatError(error.message, name)
+    }
+  }
+
+  formatError(message: string, command?: string): string {
+    const lines = [kleur.bold().red('error:') + ' ' + message]
+    if (command) {
+      lines.push('', kleur.bold('Usage:') + ` ${command.replace(/\./g, ' ')} [OPTIONS]`)
+    }
+    lines.push('', 'For more information, try ' + kleur.bold().green("'--help'") + '.')
+    return lines.join('\n')
   }
 }
 
