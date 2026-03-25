@@ -6,7 +6,7 @@ import type {} from '@cordisjs/plugin-cli'
 import type { Options } from './worker/index.ts'
 import kleur from 'kleur'
 
-export const name = 'cli-run'
+export const name = 'cli-cordis'
 export const inject = ['cli']
 
 interface Event {
@@ -15,7 +15,12 @@ interface Event {
 }
 
 export function apply(ctx: Context, config: Options) {
-  ctx.cli.command('run [file]', 'start a cordis application')
+  ctx.cli
+    .command('cordis')
+    .option('-v, --version', 'show version')
+
+  ctx.cli
+    .command('cordis.run [file]', 'start a cordis application')
     .option('-d, --daemon', 'run as daemon')
     .action(async (argv) => {
       const file = argv.args[0] || ''
