@@ -101,12 +101,14 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
   _action?: CommandAction
 
   parent?: Command
+  description: string
   dispose: () => void
 
   constructor(public ctx: Context, name: string, source: string, desc: string, public config: CommandConfig) {
     defineProperty(this, Service.tracker, {
       property: 'ctx',
     })
+    this.description = desc
     const self = this
     this.dispose = ctx.effect(function* () {
       yield ctx.cli._commands.push(self)

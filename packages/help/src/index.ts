@@ -3,6 +3,16 @@ import type CLI from '@cordisjs/plugin-cli'
 import type { Command } from '@cordisjs/plugin-cli'
 import kleur from 'kleur'
 
+declare module '@cordisjs/plugin-cli' {
+  interface CommandConfig {
+    hidden?: boolean
+  }
+
+  interface OptionConfig {
+    hidden?: boolean
+  }
+}
+
 export const name = 'cli-help'
 export const inject = ['cli']
 
@@ -12,16 +22,17 @@ export function apply(ctx: Context, config: Config = {}) {
   const cli = ctx.cli
 
   cli.command('help [command:string]', 'Print help for a command')
-    .action(({ args }) => {
+    .option('-H, --show-hidden')
+    .action(({ args, options }) => {
+      const showHidden = !!(options as any).showHidden
       const target = args[0] as string | undefined
-      if (!target) return showCommandList(cli)
+      if (!target) return showCommandList(cli, showHidden)
       const parts = args as string[]
       const resolved = resolveCommandName(cli, parts[0], parts.slice(1))
       if (!resolved) return cli.formatError(`command "${target}" not found`)
-      return showCommandHelp(resolved.command, resolved.name)
+      return showCommandHelp(cli, resolved.command, resolved.name, showHidden)
     })
 
-  // Intercept -h/--help via waterfall
   ctx.on('cli/execute', (input) => {
     const tokens: { content: string; quotes?: [string, string] }[] = []
     while (!input.isEmpty()) {
@@ -39,7 +50,7 @@ export function apply(ctx: Context, config: Config = {}) {
       if (nonHelp.length) {
         const resolved = resolveCommandName(cli, nonHelp[0].content,
           nonHelp.slice(1).map(t => t.content))
-        if (resolved) return showCommandHelp(resolved.command, resolved.name)
+        if (resolved) return showCommandHelp(cli, resolved.command, resolved.name)
       }
       return showCommandList(cli)
     }
@@ -64,51 +75,84 @@ function resolveCommandName(cli: CLI, first: string, rest: string[]): { command:
   return { command, name }
 }
 
-function showCommandList(cli: CLI): string {
+function getSubcommands(cli: CLI, parentName: string, showHidden = false): { command: Command; name: string }[] {
+  const prefix = parentName + '.'
+  const subs: { command: Command; name: string }[] = []
+  const seen = new Set<Command>()
+  for (const cmd of cli._commands) {
+    if (seen.has(cmd)) continue
+    const name = Object.keys(cmd._aliases)[0]
+    if (!name?.startsWith(prefix)) continue
+    // Only direct children (no further dots after prefix)
+    const rest = name.slice(prefix.length)
+    if (rest.includes('.')) continue
+    if (!showHidden && cmd.config.hidden) continue
+    seen.add(cmd)
+    subs.push({ command: cmd, name })
+  }
+  return subs.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+function showCommandList(cli: CLI, showHidden = false): string {
   const commands = Array.from(cli._commands)
-    .filter((cmd) => Object.keys(cmd._aliases).length > 0)
+    .filter((cmd) => {
+      const name = Object.keys(cmd._aliases)[0] || ''
+      if (name.includes('.')) return false // only top-level
+      if (!showHidden && cmd.config.hidden) return false
+      return Object.keys(cmd._aliases).length > 0
+    })
     .sort((a, b) => {
       const nameA = Object.keys(a._aliases)[0] || ''
       const nameB = Object.keys(b._aliases)[0] || ''
       return nameA.localeCompare(nameB)
     })
 
-  const topLevel = commands.filter(cmd => {
-    const name = Object.keys(cmd._aliases)[0] || ''
-    return !name.includes('.')
-  })
-
   const lines: string[] = [kleur.bold('Usage:') + ' <COMMAND> [OPTIONS]', '']
 
-  if (topLevel.length === 0) {
+  if (commands.length === 0) {
     lines.push('No commands available.')
     return lines.join('\n')
   }
 
   lines.push(kleur.bold('Commands:'))
-  const maxLen = Math.max(...topLevel.map(cmd => (Object.keys(cmd._aliases)[0] || '').length))
-  for (const cmd of topLevel) {
+  const entries = commands.map(cmd => {
     const name = Object.keys(cmd._aliases)[0] || ''
-    const pad = ' '.repeat(Math.max(2, maxLen - name.length + 4))
-    lines.push('  ' + kleur.bold().green(name) + pad)
+    return { name, desc: cmd.description }
+  })
+  const maxLen = Math.max(...entries.map(e => e.name.length))
+
+  for (const entry of entries) {
+    const pad = ' '.repeat(Math.max(2, maxLen - entry.name.length + 4))
+    const desc = entry.desc ? pad + entry.desc : ''
+    lines.push('  ' + kleur.bold().green(entry.name) + desc)
   }
 
   lines.push('', 'See ' + kleur.bold().green("'<command> --help'") + ' for more information on a specific command.')
   return lines.join('\n')
 }
 
-function showCommandHelp(command: Command, name: string): string {
+function showCommandHelp(cli: CLI, command: Command, name: string, showHidden = false): string {
   const displayName = name.replace(/\./g, ' ')
   const argParts = command._arguments.map(formatArg)
   const optionList = Array.from(command._optionList)
+    .filter(opt => showHidden || !opt.hidden)
   const hasOptions = optionList.length > 0
+  const subcommands = getSubcommands(cli, name, showHidden)
 
+  // Description
+  const lines: string[] = []
+  if (command.description) {
+    lines.push(command.description, '')
+  }
+
+  // Usage
   const usageParts = [displayName]
   if (hasOptions) usageParts.push('[OPTIONS]')
+  if (subcommands.length) usageParts.push('[COMMAND]')
   usageParts.push(...argParts)
+  lines.push(kleur.bold('Usage:') + ' ' + usageParts.join(' '))
 
-  const lines: string[] = [kleur.bold('Usage:') + ' ' + usageParts.join(' ')]
-
+  // Arguments
   if (command._arguments.length > 0) {
     lines.push('', kleur.bold('Arguments:'))
     for (const arg of command._arguments) {
@@ -116,6 +160,7 @@ function showCommandHelp(command: Command, name: string): string {
     }
   }
 
+  // Options
   if (hasOptions) {
     lines.push('', kleur.bold('Options:'))
     for (const option of optionList) {
@@ -123,6 +168,19 @@ function showCommandHelp(command: Command, name: string): string {
     }
   }
 
+  // Subcommands
+  if (subcommands.length) {
+    lines.push('', kleur.bold('Commands:'))
+    const maxLen = Math.max(...subcommands.map(s => s.name.slice(name.length + 1).length))
+    for (const sub of subcommands) {
+      const subName = sub.name.slice(name.length + 1) // strip parent prefix
+      const pad = ' '.repeat(Math.max(2, maxLen - subName.length + 4))
+      const desc = sub.command.description ? pad + sub.command.description : ''
+      lines.push('  ' + kleur.bold().green(subName) + desc)
+    }
+  }
+
+  // Aliases
   const aliases = Object.keys(command._aliases).slice(1)
   if (aliases.length > 0) {
     lines.push('', kleur.bold('Aliases:') + ' ' + aliases.join(', '))

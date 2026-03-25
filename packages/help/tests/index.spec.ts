@@ -123,3 +123,85 @@ describe('plugin-cli-help', () => {
     })
   })
 })
+
+describe('subcommands', () => {
+  it('should list subcommands in command help', async () => {
+    const parent = ctx.cli.command('pkg', 'Package manager')
+    const build = ctx.cli.command('pkg.build', 'Build packages')
+    const test = ctx.cli.command('pkg.test', 'Run tests')
+
+    const input = new Input.String('help pkg')
+    const result = await ctx.cli.execute(input)
+    expect(result).to.include('[COMMAND]')
+    expect(result).to.include('build')
+    expect(result).to.include('test')
+    expect(result).to.include('Build packages')
+    expect(result).to.include('Run tests')
+
+    parent.dispose()
+    build.dispose()
+    test.dispose()
+  })
+
+  it('should show description in command list', async () => {
+    const cmd = ctx.cli.command('described-cmd', 'A very useful command')
+    const input = new Input.String('help')
+    const result = await ctx.cli.execute(input)
+    expect(result).to.include('A very useful command')
+    cmd.dispose()
+  })
+
+  it('should hide hidden commands by default', async () => {
+    const visible = ctx.cli.command('visible-cmd', 'Visible')
+    const hidden = ctx.cli.command('hidden-cmd', 'Hidden', { hidden: true })
+
+    const input1 = new Input.String('help')
+    const result1 = await ctx.cli.execute(input1)
+    expect(result1).to.include('visible-cmd')
+    expect(result1).to.not.include('hidden-cmd')
+
+    visible.dispose()
+    hidden.dispose()
+  })
+
+  it('should show hidden commands with -H', async () => {
+    const visible = ctx.cli.command('vis2', 'Visible')
+    const hidden = ctx.cli.command('hid2', 'Hidden', { hidden: true })
+
+    const input = new Input.String('help -H')
+    const result = await ctx.cli.execute(input)
+    expect(result).to.include('vis2')
+    expect(result).to.include('hid2')
+
+    visible.dispose()
+    hidden.dispose()
+  })
+})
+
+describe('hidden options', () => {
+  it('should hide hidden options by default', async () => {
+    const cmd = ctx.cli.command('opt-vis', 'Test')
+    cmd.option('-v, --verbose')
+    cmd.option('--internal', { hidden: true })
+
+    const input = new Input.String('help opt-vis')
+    const result = await ctx.cli.execute(input)
+    expect(result).to.include('--verbose')
+    expect(result).to.not.include('--internal')
+
+    cmd.dispose()
+  })
+
+  it('should show hidden options with -H', async () => {
+    const cmd = ctx.cli.command('opt-vis2', 'Test')
+    cmd.option('-v, --verbose')
+    cmd.option('--internal', { hidden: true })
+
+    const input = new Input.String('help -H opt-vis2')
+    const result = await ctx.cli.execute(input)
+    expect(result).to.include('--verbose')
+    expect(result).to.include('--internal')
+
+    cmd.dispose()
+  })
+})
