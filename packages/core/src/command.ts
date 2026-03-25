@@ -109,19 +109,19 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
     })
     const self = this
     this.dispose = ctx.effect(function* () {
-      yield ctx.iroha._commands.push(self)
+      yield ctx.cli._commands.push(self)
       self._aliases[name] = {}
-      ctx.iroha._aliases[name] = self
+      ctx.cli._aliases[name] = self
       yield () => {
         for (const name in self._aliases) {
-          delete ctx.iroha._aliases[name]
+          delete ctx.cli._aliases[name]
         }
       }
     })
   }
 
   * [Service.init]() {
-    yield this.ctx.iroha._commands.push(this)
+    yield this.ctx.cli._commands.push(this)
   }
 
   alias(name: string, alias: CommandAlias) {
@@ -130,8 +130,8 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
       self._aliases[name] = alias
       yield () => delete self._aliases[name]
       if (name.startsWith('.')) return
-      self.ctx.iroha._aliases[name] = self
-      yield () => delete self.ctx.iroha._aliases[name]
+      self.ctx.cli._aliases[name] = self
+      yield () => delete self.ctx.cli._aliases[name]
     })
   }
 
@@ -160,7 +160,7 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
       def = def.slice(cap.index + cap[0].length)
       names.push(camelize(cap[2]))
     }
-    const params = this.ctx.iroha.parseParams(def, 'option')
+    const params = this.ctx.cli.parseParams(def, 'option')
     if (params.length > 1) {
       throw new TypeError('option accepts at most one argument')
     }
@@ -169,7 +169,7 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
       if (!param) {
         throw new TypeError('option with type requires argument')
       }
-      Object.assign(param, this.ctx.iroha.parseType(type))
+      Object.assign(param, this.ctx.cli.parseType(type))
     }
     const option: Option = {
       ...rest,
@@ -212,11 +212,10 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
     while (!input.isEmpty()) {
       // variadic argument
       const param = this._arguments[args.length] || variadic
-      if (param.variadic) variadic = param
-      if (!param) throw new TypeError('too many arguments')
+      if (param?.variadic) variadic = param
 
       // greedy argument
-      if (param.greedy) {
+      if (param?.greedy) {
         args.push(param.parse(input.drain()))
         break
       }
@@ -227,6 +226,7 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
       // 3. numeric tokens at numeric type
       let { content, quotes } = input.next()
       if (isParam(content)) {
+        if (!param) throw new TypeError('too many arguments')
         args.push(param.parse(content))
         continue
       }
@@ -298,8 +298,9 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
     }
 
     // check argument count
-    if (args.length < this._arguments.length) {
-      const extra = this._arguments.slice(args.length)
+    const requiredArgs = this._arguments.filter(arg => arg.required)
+    if (args.length < requiredArgs.length) {
+      const extra = requiredArgs.slice(args.length)
       throw new TypeError(`missing arguments: ${extra.map(arg => `"${arg.name}"`).join(', ')}`)
     }
 

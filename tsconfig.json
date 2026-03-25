@@ -1,9 +1,9 @@
 {
   "extends": "./tsconfig.base",
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
-      "iroha": ["packages/core/src"],
+      "@cordisjs/plugin-cli": ["./packages/core/src"],
+      "@cordisjs/plugin-cli-*": ["./packages/*/src"],
     },
   },
   "files": [],

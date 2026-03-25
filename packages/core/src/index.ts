@@ -1,13 +1,15 @@
 import { Context, DisposableList, Service } from 'cordis'
 import { Dict, hyphenate, Time } from 'cosmokit'
+import type {} from '@cordisjs/plugin-loader'
 import { Command, CommandConfig, ParseArgument } from './command'
 import { Input } from './parser'
 
 export * from './command'
+export * from './parser'
 
 declare module 'cordis' {
   interface Context {
-    iroha: Iroha
+    cli: CLI
   }
 }
 
@@ -65,19 +67,17 @@ export interface Param extends Type {
   required: boolean
 }
 
-export namespace Iroha {
-  export interface Config {
-    cli?: boolean
-  }
+export namespace CLI {
+  export interface Config {}
 }
 
-export class Iroha extends Service {
+export class CLI extends Service {
   _builtin: Dict<Type | undefined> = {}
   _commands = new DisposableList<Command>()
   _aliases: Dict<Command | undefined> = Object.create(null)
 
-  constructor(ctx: Context, public config: Iroha.Config = {}) {
-    super(ctx, 'iroha')
+  constructor(ctx: Context, public config: CLI.Config = {}) {
+    super(ctx, 'cli')
 
     this.define('string', source => source)
     this.define('text', source => source, { greedy: true })
@@ -111,6 +111,18 @@ export class Iroha extends Service {
       const timestamp = Time.parseDate(source)
       if (+timestamp) return timestamp
       throw new Error('internal.invalid-date')
+    })
+
+    ctx.inject({
+      loader: {
+        required: true,
+        config: { await: true },
+      },
+    }, async () => {
+      const input = new Input.Argv()
+      const output = await this.execute(input)
+      // eslint-disable-next-line no-console
+      if (output) console.log(output)
     })
   }
 
@@ -148,7 +160,7 @@ export class Iroha extends Service {
     let cap: RegExpExecArray | null
     const args: Param[] = []
     while ((cap = BRACKET_REGEXP.exec(source))) {
-      let rawName = cap[1]
+      let rawName = cap[1] || cap[2]
       let variadic = false
       if (rawName.startsWith('...')) {
         rawName = rawName.slice(3)
@@ -174,6 +186,7 @@ export class Iroha extends Service {
     const [path] = source.split(/(?=[\s<\[])/, 1)
     source = source.slice(path.length).trimStart()
     const command = new Command(this.ctx, hyphenate(path), source, desc, config)
+    command._arguments = this.parseParams(source, 'argument')
     return command
   }
 
@@ -187,4 +200,4 @@ export class Iroha extends Service {
   }
 }
 
-export default Iroha
+export default CLI
