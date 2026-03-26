@@ -29,7 +29,7 @@ export function apply(ctx: Context, config: Config = {}) {
       if (!target) return showCommandList(cli, showHidden)
       const parts = args as string[]
       const resolved = resolveCommandName(cli, parts[0], parts.slice(1))
-      if (!resolved) return cli.formatError(`command "${target}" not found`)
+      if (!resolved) return kleur.bold().red('Error:') + ` command "${target}" not found`
       return showCommandHelp(cli, resolved.command, resolved.name, showHidden)
     })
 
@@ -53,6 +53,22 @@ export function apply(ctx: Context, config: Config = {}) {
         if (resolved) return showCommandHelp(cli, resolved.command, resolved.name)
       }
       return showCommandList(cli)
+    }
+
+    // Check for bare command with subcommands but no arguments/options
+    // e.g. `cordis` or `yakumo` with no args → show help
+    if (tokens.length === 1 && !tokens[0].quotes) {
+      const resolved = resolveCommandName(cli, tokens[0].content, [])
+      if (resolved) {
+        const subs = getSubcommands(cli, resolved.name)
+        // Only remaining tokens after command name would be the rest
+        // Since we only have the command token, check if it has subcommands
+        // and no required arguments
+        const hasRequiredArgs = resolved.command._arguments.some(a => a.required)
+        if (subs.length > 0 && !hasRequiredArgs) {
+          return showCommandHelp(cli, resolved.command, resolved.name)
+        }
+      }
     }
 
     // Not help — push tokens back
@@ -107,14 +123,14 @@ function showCommandList(cli: CLI, showHidden = false): string {
       return nameA.localeCompare(nameB)
     })
 
-  const lines: string[] = [kleur.bold('Usage:') + ' <COMMAND> [OPTIONS]', '']
+  const lines: string[] = [kleur.bold().green('Usage:') + ' <COMMAND> [OPTIONS]', '']
 
   if (commands.length === 0) {
     lines.push('No commands available.')
     return lines.join('\n')
   }
 
-  lines.push(kleur.bold('Commands:'))
+  lines.push(kleur.bold().green('Commands:'))
   const entries = commands.map(cmd => {
     const name = Object.keys(cmd._aliases)[0] || ''
     return { name, desc: cmd.description }
@@ -124,10 +140,10 @@ function showCommandList(cli: CLI, showHidden = false): string {
   for (const entry of entries) {
     const pad = ' '.repeat(Math.max(2, maxLen - entry.name.length + 4))
     const desc = entry.desc ? pad + entry.desc : ''
-    lines.push('  ' + kleur.bold().green(entry.name) + desc)
+    lines.push('  ' + kleur.bold().cyan(entry.name) + desc)
   }
 
-  lines.push('', 'See ' + kleur.bold().green("'<command> --help'") + ' for more information on a specific command.')
+  lines.push('', 'See ' + kleur.bold().cyan("'<command> --help'") + ' for more information on a specific command.')
   return lines.join('\n')
 }
 
@@ -146,15 +162,15 @@ function showCommandHelp(cli: CLI, command: Command, name: string, showHidden = 
   }
 
   // Usage
-  const usageParts = [displayName]
-  if (hasOptions) usageParts.push('[OPTIONS]')
-  if (subcommands.length) usageParts.push('[COMMAND]')
+  const usageParts = [kleur.bold().cyan(displayName)]
+  if (hasOptions) usageParts.push(kleur.cyan('[OPTIONS]'))
+  if (subcommands.length) usageParts.push(kleur.cyan('[COMMAND]'))
   usageParts.push(...argParts)
-  lines.push(kleur.bold('Usage:') + ' ' + usageParts.join(' '))
+  lines.push(kleur.bold().green('Usage:') + ' ' + usageParts.join(' '))
 
   // Arguments
   if (command._arguments.length > 0) {
-    lines.push('', kleur.bold('Arguments:'))
+    lines.push('', kleur.bold().green('Arguments:'))
     for (const arg of command._arguments) {
       lines.push('  ' + kleur.green(formatArg(arg)))
     }
@@ -162,28 +178,28 @@ function showCommandHelp(cli: CLI, command: Command, name: string, showHidden = 
 
   // Options
   if (hasOptions) {
-    lines.push('', kleur.bold('Options:'))
+    lines.push('', kleur.bold().green('Options:'))
     for (const option of optionList) {
-      lines.push('  ' + option.source)
+      lines.push('  ' + kleur.bold().cyan(option.source))
     }
   }
 
   // Subcommands
   if (subcommands.length) {
-    lines.push('', kleur.bold('Commands:'))
+    lines.push('', kleur.bold().green('Commands:'))
     const maxLen = Math.max(...subcommands.map(s => s.name.slice(name.length + 1).length))
     for (const sub of subcommands) {
       const subName = sub.name.slice(name.length + 1) // strip parent prefix
       const pad = ' '.repeat(Math.max(2, maxLen - subName.length + 4))
       const desc = sub.command.description ? pad + sub.command.description : ''
-      lines.push('  ' + kleur.bold().green(subName) + desc)
+      lines.push('  ' + kleur.bold().cyan(subName) + desc)
     }
   }
 
   // Aliases
   const aliases = Object.keys(command._aliases).slice(1)
   if (aliases.length > 0) {
-    lines.push('', kleur.bold('Aliases:') + ' ' + aliases.join(', '))
+    lines.push('', kleur.bold().green('Aliases:') + ' ' + aliases.join(', '))
   }
 
   return lines.join('\n')

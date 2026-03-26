@@ -1,5 +1,6 @@
 import { ChildProcess, fork } from 'node:child_process'
 import { extname, resolve } from 'node:path'
+import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { Context } from 'cordis'
 import type {} from '@cordisjs/plugin-cli'
@@ -16,8 +17,15 @@ interface Event {
 
 export function apply(ctx: Context, config: Options) {
   ctx.cli
-    .command('cordis')
-    .option('-v, --version', 'show version')
+    .command('cordis', 'Meta-Framework for Modern Applications')
+    .option('-v, --version', 'Show version')
+    .action(({ options }) => {
+      if (options.version) {
+        const require = createRequire(import.meta.url)
+        const { version } = require('cordis/package.json')
+        return `cordis ${version}`
+      }
+    })
 
   ctx.cli
     .command('cordis.run [file]', 'start a cordis application')

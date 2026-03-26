@@ -1,6 +1,6 @@
 {
   "name": "@cordisjs/plugin-cli",
-  "description": "Meta-Framework for Modern JavaScript Applications",
+  "description": "CLI service for Cordis",
   "version": "1.0.0-alpha.0",
   "type": "module",
   "main": "lib/index.js",

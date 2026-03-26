@@ -200,11 +200,11 @@ export class CLI extends Service {
     const intercepted = this.ctx.bail('cli/execute', input)
     if (intercepted !== undefined) return intercepted
 
-    if (input.isEmpty()) return this.formatError('no command provided')
+    if (input.isEmpty()) return this.error('no command provided')
     const token = input.next()
     const command = this._aliases[token.content]
     if (!command) {
-      return this.formatError(`command "${token.content}" not found`)
+      return this.error(`command "${token.content}" not found`)
     }
 
     // Multi-level command resolution (git-style subcommands)
@@ -223,18 +223,46 @@ export class CLI extends Service {
       }
     }
 
+    // Check if the first remaining token looks like a subcommand attempt
+    // (not starting with -, not quoted) on a command that has subcommands
+    if (!input.isEmpty()) {
+      const peeked = input.next()
+      const isParam = peeked.quotes || peeked.content.charCodeAt(0) === 45 // starts with -
+      if (!isParam) {
+        // Check if resolved command has subcommands
+        const prefix = name + '.'
+        let hasSubcommands = false
+        for (const cmd of this._commands) {
+          const cmdName = Object.keys(cmd._aliases)[0]
+          if (cmdName?.startsWith(prefix) && !cmdName.slice(prefix.length).includes('.')) {
+            hasSubcommands = true
+            break
+          }
+        }
+        if (hasSubcommands && !resolved._arguments.length) {
+          return this.error(`no such command: \`${peeked.content}\``, name)
+        }
+      }
+      input.unshift(peeked)
+    }
+
     try {
       const argv = resolved.parse(input, args, options)
       return resolved.execute(argv)
     } catch (error: any) {
-      return this.formatError(error.message, name)
+      return this.error(error.message, name)
     }
   }
 
-  formatError(message: string, command?: string): string {
-    const lines = [kleur.bold().red('error:') + ' ' + message]
+  private error(message: string, command?: string): string {
+    const lines = [kleur.bold().red('Error:') + ' ' + message]
     if (command) {
-      lines.push('', kleur.bold('Usage:') + ` ${command.replace(/\./g, ' ')} [OPTIONS]`)
+      lines.push('')
+      lines.push([
+        kleur.bold().green('Usage:'),
+        kleur.bold().cyan(command.replace(/\./g, ' ')),
+        kleur.cyan('[OPTIONS]'),
+      ].join(' '))
     }
     lines.push('', 'For more information, try ' + kleur.bold().green("'--help'") + '.')
     return lines.join('\n')

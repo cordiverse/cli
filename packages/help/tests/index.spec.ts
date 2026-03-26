@@ -205,3 +205,95 @@ describe('hidden options', () => {
     cmd.dispose()
   })
 })
+
+describe('bare command fallback to help', () => {
+  it('should show help when bare command has subcommands', async () => {
+    const parent = ctx.cli.command('myapp', 'My application')
+    parent.option('-v, --version')
+    parent.action(({ options }) => {
+      if ((options as any).version) return 'v1.0.0'
+    })
+    const sub = ctx.cli.command('myapp.run', 'Run the app')
+
+    // bare `myapp` → should show help (has subcommands, no args passed)
+    const input = new Input.String('myapp')
+    const result = await ctx.cli.execute(input)
+    expect(result).to.include('myapp')
+    expect(result).to.include('run')
+    expect(result).to.include('Commands:')
+
+    parent.dispose()
+    sub.dispose()
+  })
+
+  it('should not show help when -v is passed', async () => {
+    const parent = ctx.cli.command('myapp2', 'My application')
+    parent.option('-v, --version')
+    parent.action(({ options }) => {
+      if ((options as any).version) return 'v1.0.0'
+    })
+    const sub = ctx.cli.command('myapp2.run', 'Run the app')
+
+    const input = new Input.String('myapp2 -v')
+    const result = await ctx.cli.execute(input)
+    expect(result).to.equal('v1.0.0')
+
+    parent.dispose()
+    sub.dispose()
+  })
+
+  it('should not fallback for command without subcommands', async () => {
+    const cmd = ctx.cli.command('simple-cmd', 'Simple')
+    cmd.action(() => 'hello')
+
+    const input = new Input.String('simple-cmd')
+    const result = await ctx.cli.execute(input)
+    expect(result).to.equal('hello')
+
+    cmd.dispose()
+  })
+})
+
+describe('no such command for subcommand-bearing commands', () => {
+  it('should report no such command instead of too many arguments', async () => {
+    const parent = ctx.cli.command('tool', 'A tool')
+    const sub = ctx.cli.command('tool.build', 'Build')
+
+    const input = new Input.String('tool aaa')
+    const result = await ctx.cli.execute(input)
+    expect(result).to.include('error:')
+    expect(result).to.include('no such command')
+    expect(result).to.include('aaa')
+
+    parent.dispose()
+    sub.dispose()
+  })
+
+  it('should still allow options on parent command', async () => {
+    const parent = ctx.cli.command('tool2', 'A tool')
+    parent.option('-v, --verbose')
+    parent.action(({ options }) => {
+      if ((options as any).verbose) return 'verbose mode'
+    })
+    const sub = ctx.cli.command('tool2.build', 'Build')
+
+    const input = new Input.String('tool2 --verbose')
+    const result = await ctx.cli.execute(input)
+    expect(result).to.equal('verbose mode')
+
+    parent.dispose()
+    sub.dispose()
+  })
+
+  it('should report too many arguments for commands without subcommands', async () => {
+    const cmd = ctx.cli.command('nosubcmd', 'No subs')
+    cmd.action(() => 'ok')
+
+    const input = new Input.String('nosubcmd extra')
+    const result = await ctx.cli.execute(input)
+    expect(result).to.include('error:')
+    expect(result).to.include('too many arguments')
+
+    cmd.dispose()
+  })
+})
