@@ -76,6 +76,24 @@ export function apply(ctx: Context, config: Config = {}) {
       input.unshift(tokens[i])
     }
   })
+
+  // Handle cli/error: append usage and help hint
+  ctx.on('cli/error', (command, next) => {
+    let output = next('')
+    if (command) {
+      const parts = command.split('.')
+      const resolved = resolveCommandName(cli, parts[0], parts.slice(1))
+      if (resolved) {
+        const displayName = command.replace(/\./g, ' ')
+        const argParts = resolved.command._arguments.map(formatArg)
+        const usageParts = [kleur.bold().cyan(displayName), kleur.cyan('[OPTIONS]')]
+        usageParts.push(...argParts)
+        output += '\n\n' + kleur.bold().green('Usage:') + ' ' + usageParts.join(' ')
+      }
+    }
+    output += '\n\n' + 'For more information, try ' + kleur.bold().cyan("'--help'") + '.'
+    return output
+  })
 }
 
 function resolveCommandName(cli: CLI, first: string, rest: string[]): { command: Command; name: string } | null {
@@ -179,8 +197,11 @@ function showCommandHelp(cli: CLI, command: Command, name: string, showHidden = 
   // Options
   if (hasOptions) {
     lines.push('', kleur.bold().green('Options:'))
+    const maxLen = Math.max(...optionList.map(o => o.source.length))
     for (const option of optionList) {
-      lines.push('  ' + kleur.bold().cyan(option.source))
+      const pad = ' '.repeat(Math.max(2, maxLen - option.source.length + 4))
+      const desc = option.description ? pad + option.description : ''
+      lines.push('  ' + kleur.bold().cyan(option.source) + desc)
     }
   }
 

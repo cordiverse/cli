@@ -28,6 +28,7 @@ export interface TypedOptionConfig<T extends TypeInit> extends OptionConfig<T> {
 
 export interface Option extends Omit<OptionConfig, 'type'> {
   source: string
+  description: string
   names: string[]
   param?: Param
 }
@@ -149,8 +150,7 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
   ): Command<A, O & ParseOption<S, ResolveTypeInit<T>>>
 
   option(source: string, ...args: [OptionConfig?] | [string, OptionConfig?]) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const desc = typeof args[0] === 'string' ? args.shift() as string : ''
+    const description = typeof args[0] === 'string' ? args.shift() as string : ''
     const { type, ...rest } = (args[0] || {}) as OptionConfig
     let def = source.trimStart()
     let cap: RegExpExecArray | null
@@ -177,6 +177,7 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
       ...rest,
       names,
       source,
+      description,
       param,
     }
     const conflicts = names.filter(name => this._optionDict[name])

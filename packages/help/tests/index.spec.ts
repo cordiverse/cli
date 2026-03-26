@@ -44,7 +44,7 @@ describe('plugin-cli-help', () => {
     it('should report unknown command', async () => {
       const input = new Input.String('help nonexistent')
       const result = await ctx.cli.execute(input)
-      expect(result).to.include('error:')
+      expect(result).to.include('Error:')
       expect(result).to.include('not found')
     })
 
@@ -108,7 +108,7 @@ describe('plugin-cli-help', () => {
     it('should format unknown command error', async () => {
       const input = new Input.String('nonexistent')
       const result = await ctx.cli.execute(input)
-      expect(result).to.include('error:')
+      expect(result).to.include('Error:')
       expect(result).to.include('not found')
       expect(result).to.include('--help')
     })
@@ -117,7 +117,7 @@ describe('plugin-cli-help', () => {
       const cmd = ctx.cli.command('err-test')
       const input = new Input.String('err-test --unknown')
       const result = await ctx.cli.execute(input)
-      expect(result).to.include('error:')
+      expect(result).to.include('Error:')
       expect(result).to.include('err-test')
       cmd.dispose()
     })
@@ -261,7 +261,7 @@ describe('no such command for subcommand-bearing commands', () => {
 
     const input = new Input.String('tool aaa')
     const result = await ctx.cli.execute(input)
-    expect(result).to.include('error:')
+    expect(result).to.include('Error:')
     expect(result).to.include('no such command')
     expect(result).to.include('aaa')
 
@@ -291,7 +291,7 @@ describe('no such command for subcommand-bearing commands', () => {
 
     const input = new Input.String('nosubcmd extra')
     const result = await ctx.cli.execute(input)
-    expect(result).to.include('error:')
+    expect(result).to.include('Error:')
     expect(result).to.include('too many arguments')
 
     cmd.dispose()

@@ -458,14 +458,14 @@ describe('Command Execution', () => {
     const input = new Input.String('')
     const result = ctx.cli.execute(input)
     expect(result).to.be.a('string')
-    expect(result).to.include('error:')
+    expect(result).to.include('Error:')
   })
 
   it('should return error string for unknown command', () => {
     const input = new Input.String('nonexistent')
     const result = ctx.cli.execute(input)
     expect(result).to.be.a('string')
-    expect(result).to.include('error:')
+    expect(result).to.include('Error:')
     expect(result).to.include('not found')
   })
 

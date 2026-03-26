@@ -15,6 +15,7 @@ declare module 'cordis' {
 
   interface Events {
     'cli/execute'(input: Input): any
+    'cli/error'(command: string | undefined, next: (output: string) => string): string
   }
 }
 
@@ -255,17 +256,9 @@ export class CLI extends Service {
   }
 
   private error(message: string, command?: string): string {
-    const lines = [kleur.bold().red('Error:') + ' ' + message]
-    if (command) {
-      lines.push('')
-      lines.push([
-        kleur.bold().green('Usage:'),
-        kleur.bold().cyan(command.replace(/\./g, ' ')),
-        kleur.cyan('[OPTIONS]'),
-      ].join(' '))
-    }
-    lines.push('', 'For more information, try ' + kleur.bold().green("'--help'") + '.')
-    return lines.join('\n')
+    return this.ctx.waterfall('cli/error', command, () => {
+      return kleur.bold().red('Error:') + ' ' + message
+    })
   }
 }
 
