@@ -1,7 +1,6 @@
 import { Context } from 'cordis'
 import { expect } from 'chai'
-import CLI, { Command } from '../src/index.ts'
-import { Input } from '../src/parser.ts'
+import { CLI, Command, Input } from '@cordisjs/plugin-cli'
 
 const ctx = new Context()
 
@@ -454,19 +453,26 @@ describe('Command Execution', () => {
     cmd.dispose()
   })
 
-  it('should return error string for empty input', async () => {
+  it('should throw string for empty input', async () => {
     const input = new Input.String('')
-    const result = await ctx.cli.execute(input)
-    expect(result).to.be.a('string')
-    expect(result).to.include('Error:')
+    try {
+      await ctx.cli.execute(input)
+      expect.fail('should have thrown')
+    } catch (err: any) {
+      expect(err).to.be.instanceOf(Error)
+      expect(err.message).to.include('no command provided')
+    }
   })
 
-  it('should return error string for unknown command', async () => {
+  it('should throw string for unknown command', async () => {
     const input = new Input.String('nonexistent')
-    const result = await ctx.cli.execute(input)
-    expect(result).to.be.a('string')
-    expect(result).to.include('Error:')
-    expect(result).to.include('not found')
+    try {
+      await ctx.cli.execute(input)
+      expect.fail('should have thrown')
+    } catch (err: any) {
+      expect(err).to.be.instanceOf(Error)
+      expect(err.message).to.include('not found')
+    }
   })
 
   it('should return undefined when no action', async () => {

@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { Input } from '../src/parser.ts'
+import { Input } from '@cordisjs/plugin-cli'
 
 describe('Input.String', () => {
   describe('basic tokenization', () => {

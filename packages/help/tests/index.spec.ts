@@ -1,8 +1,7 @@
 import { Context } from 'cordis'
 import { expect } from 'chai'
-import CLI from '../../core/src/index.ts'
-import * as help from '../src/index.ts'
-import { Input } from '../../core/src/parser.ts'
+import { CLI, Input } from '@cordisjs/plugin-cli'
+import * as help from '@cordisjs/plugin-cli-help'
 
 const ctx = new Context()
 
@@ -105,20 +104,27 @@ describe('plugin-cli-help', () => {
   })
 
   describe('error formatting', () => {
-    it('should format unknown command error', async () => {
+    it('should throw for unknown command', async () => {
       const input = new Input.String('nonexistent')
-      const result = await ctx.cli.execute(input)
-      expect(result).to.include('Error:')
-      expect(result).to.include('not found')
-      expect(result).to.include('--help')
+      try {
+        await ctx.cli.execute(input)
+        expect.fail('should have thrown')
+      } catch (err: any) {
+        expect(err).to.be.instanceOf(Error)
+        expect(err.message).to.include('not found')
+      }
     })
 
-    it('should format parse error with usage', async () => {
+    it('should throw for parse error', async () => {
       const cmd = ctx.cli.command('err-test')
       const input = new Input.String('err-test --unknown')
-      const result = await ctx.cli.execute(input)
-      expect(result).to.include('Error:')
-      expect(result).to.include('err-test')
+      try {
+        await ctx.cli.execute(input)
+        expect.fail('should have thrown')
+      } catch (err: any) {
+        expect(err).to.be.instanceOf(Error)
+        expect(err.message).to.include('unknown')
+      }
       cmd.dispose()
     })
   })
@@ -276,9 +282,13 @@ describe('no such command for subcommand-bearing commands', () => {
     const sub = ctx.cli.command('tool.build', 'Build')
 
     const input = new Input.String('tool aaa')
-    const result = await ctx.cli.execute(input)
-    expect(result).to.include('Error:')
-    expect(result).to.include('unknown command')
+    try {
+      await ctx.cli.execute(input)
+      expect.fail('should have thrown')
+    } catch (err: any) {
+      expect(err).to.be.instanceOf(Error)
+      expect(err.message).to.include('unknown command')
+    }
 
     parent.dispose()
     sub.dispose()
@@ -305,9 +315,13 @@ describe('no such command for subcommand-bearing commands', () => {
     cmd.action(() => 'ok')
 
     const input = new Input.String('nosubcmd extra')
-    const result = await ctx.cli.execute(input)
-    expect(result).to.include('Error:')
-    expect(result).to.include('too many arguments')
+    try {
+      await ctx.cli.execute(input)
+      expect.fail('should have thrown')
+    } catch (err: any) {
+      expect(err).to.be.instanceOf(Error)
+      expect(err.message).to.include('too many arguments')
+    }
 
     cmd.dispose()
   })

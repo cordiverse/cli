@@ -51,6 +51,7 @@ export interface Types {
 
 export type TypeInit =
   | RegExp
+  | keyof Types
   | readonly string[]
   | Type.Parse
   | Type
