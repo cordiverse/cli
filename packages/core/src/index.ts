@@ -10,7 +10,7 @@ export * from './parser'
 
 declare module 'cordis' {
   interface Context {
-    cli: CLI
+    cli: Cli
   }
 
   interface Events {
@@ -74,18 +74,18 @@ export interface Param extends Type {
   required: boolean
 }
 
-export namespace CLI {
+export namespace Cli {
   export interface Config {
     name?: string
   }
 }
 
-export class CLI extends Service {
+export class Cli extends Service {
   _builtin: Dict<Type | undefined> = {}
   _commands = new DisposableList<Command>()
   _aliases: Dict<Command | undefined> = Object.create(null)
 
-  constructor(ctx: Context, public config: CLI.Config = {}) {
+  constructor(ctx: Context, public config: Cli.Config = {}) {
     super(ctx, 'cli')
 
     this.define('string', source => source)
@@ -264,4 +264,4 @@ export class CLI extends Service {
   }
 }
 
-export default CLI
+export default Cli

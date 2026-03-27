@@ -1,5 +1,5 @@
 import { Context } from 'cordis'
-import type CLI from '@cordisjs/plugin-cli'
+import type Cli from '@cordisjs/plugin-cli'
 import type { Command } from '@cordisjs/plugin-cli'
 import kleur from 'kleur'
 
@@ -97,7 +97,7 @@ export function apply(ctx: Context, config: Config = {}) {
   })
 }
 
-function resolveCommandName(cli: CLI, first: string, rest: string[]): { command: Command; name: string } | null {
+function resolveCommandName(cli: Cli, first: string, rest: string[]): { command: Command; name: string } | null {
   let command = cli._aliases[first]
   if (!command) return null
   let name = first
@@ -110,7 +110,7 @@ function resolveCommandName(cli: CLI, first: string, rest: string[]): { command:
   return { command, name }
 }
 
-function getSubcommands(cli: CLI, parentName: string, showHidden = false): { command: Command; name: string }[] {
+function getSubcommands(cli: Cli, parentName: string, showHidden = false): { command: Command; name: string }[] {
   const subs: { command: Command; name: string }[] = []
   const seen = new Set<Command>()
   if (parentName === '') {
@@ -140,7 +140,7 @@ function getSubcommands(cli: CLI, parentName: string, showHidden = false): { com
   return subs.sort((a, b) => a.name.localeCompare(b.name))
 }
 
-function showCommandList(cli: CLI, showHidden = false): string {
+function showCommandList(cli: Cli, showHidden = false): string {
   const commands = Array.from(cli._commands)
     .filter((cmd) => {
       const name = Object.keys(cmd._aliases)[0] || ''
@@ -179,13 +179,13 @@ function showCommandList(cli: CLI, showHidden = false): string {
   return lines.join('\n')
 }
 
-function getDisplayName(cli: CLI, name: string): string {
+function getDisplayName(cli: Cli, name: string): string {
   const prefix = cli.config.name || ''
   const commandName = name.replace(/\./g, ' ')
   return [prefix, commandName].filter(Boolean).join(' ')
 }
 
-function showCommandHelp(cli: CLI, command: Command, name: string, showHidden = false): string {
+function showCommandHelp(cli: Cli, command: Command, name: string, showHidden = false): string {
   const displayName = getDisplayName(cli, name)
   const argParts = command._arguments.map(formatArg)
   const optionList = Array.from(command._optionList)

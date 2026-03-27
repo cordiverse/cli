@@ -1,11 +1,11 @@
 import { Context } from 'cordis'
 import { expect } from 'chai'
-import { CLI, Command, Input } from '@cordisjs/plugin-cli'
+import { Cli, Command, Input } from '@cordisjs/plugin-cli'
 
 const ctx = new Context()
 
 before(async () => {
-  await ctx.plugin(CLI)
+  await ctx.plugin(Cli)
 })
 
 describe('CLI Service', () => {

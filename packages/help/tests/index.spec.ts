@@ -1,12 +1,12 @@
 import { Context } from 'cordis'
 import { expect } from 'chai'
-import { CLI, Input } from '@cordisjs/plugin-cli'
+import { Cli, Input } from '@cordisjs/plugin-cli'
 import * as help from '@cordisjs/plugin-cli-help'
 
 const ctx = new Context()
 
 before(async () => {
-  await ctx.plugin(CLI)
+  await ctx.plugin(Cli)
   await ctx.plugin(help)
 })
 
