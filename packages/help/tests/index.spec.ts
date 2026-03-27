@@ -206,51 +206,67 @@ describe('hidden options', () => {
   })
 })
 
-describe('bare command fallback to help', () => {
-  it('should show help when bare command has subcommands', async () => {
-    const parent = ctx.cli.command('myapp', 'My application')
-    parent.option('-v, --version')
-    parent.action(({ options }) => {
+describe('root command', () => {
+  it('should show help when no input and root has subcommands', async () => {
+    const root = ctx.cli.command('', 'My application')
+    root.option('-v, --version', 'Show version')
+    root.action(({ options }) => {
       if ((options as any).version) return 'v1.0.0'
     })
-    const sub = ctx.cli.command('myapp.run', 'Run the app')
+    const sub = ctx.cli.command('run', 'Run the app')
 
-    // bare `myapp` → should show help (has subcommands, no args passed)
-    const input = new Input.String('myapp')
+    // empty input → should show root help
+    const input = new Input.String('')
     const result = await ctx.cli.execute(input)
-    expect(result).to.include('myapp')
     expect(result).to.include('run')
     expect(result).to.include('Commands:')
 
-    parent.dispose()
+    root.dispose()
     sub.dispose()
   })
 
-  it('should not show help when -v is passed', async () => {
-    const parent = ctx.cli.command('myapp2', 'My application')
-    parent.option('-v, --version')
-    parent.action(({ options }) => {
+  it('should handle -v on root command', async () => {
+    const root = ctx.cli.command('')
+    root.option('-v, --version', 'Show version')
+    root.action(({ options }) => {
       if ((options as any).version) return 'v1.0.0'
     })
-    const sub = ctx.cli.command('myapp2.run', 'Run the app')
+    const sub = ctx.cli.command('run', 'Run the app')
 
-    const input = new Input.String('myapp2 -v')
+    const input = new Input.String('-v')
     const result = await ctx.cli.execute(input)
     expect(result).to.equal('v1.0.0')
 
-    parent.dispose()
+    root.dispose()
     sub.dispose()
   })
 
-  it('should not fallback for command without subcommands', async () => {
-    const cmd = ctx.cli.command('simple-cmd', 'Simple')
-    cmd.action(() => 'hello')
+  it('should resolve subcommands without prefix', async () => {
+    const root = ctx.cli.command('')
+    const sub = ctx.cli.command('mocha', 'Run tests')
+    sub.action(() => 'mocha ran!')
 
-    const input = new Input.String('simple-cmd')
+    const input = new Input.String('mocha')
     const result = await ctx.cli.execute(input)
-    expect(result).to.equal('hello')
+    expect(result).to.equal('mocha ran!')
 
-    cmd.dispose()
+    root.dispose()
+    sub.dispose()
+  })
+
+  it('should show --help for root', async () => {
+    const root = ctx.cli.command('', 'My CLI tool')
+    root.option('-v, --version', 'Show version')
+    const sub = ctx.cli.command('build', 'Build project')
+
+    const input = new Input.String('--help')
+    const result = await ctx.cli.execute(input)
+    expect(result).to.include('My CLI tool')
+    expect(result).to.include('build')
+    expect(result).to.include('--version')
+
+    root.dispose()
+    sub.dispose()
   })
 })
 
@@ -262,8 +278,7 @@ describe('no such command for subcommand-bearing commands', () => {
     const input = new Input.String('tool aaa')
     const result = await ctx.cli.execute(input)
     expect(result).to.include('Error:')
-    expect(result).to.include('no such command')
-    expect(result).to.include('aaa')
+    expect(result).to.include('unknown command')
 
     parent.dispose()
     sub.dispose()

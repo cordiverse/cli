@@ -74,7 +74,9 @@ export interface Param extends Type {
 }
 
 export namespace CLI {
-  export interface Config {}
+  export interface Config {
+    name?: string
+  }
 }
 
 export class CLI extends Service {
@@ -196,61 +198,51 @@ export class CLI extends Service {
     return command
   }
 
-  execute(input: Input, args: any[] = [], options: Dict = {}) {
+  async execute(input: Input, args: any[] = [], options: Dict = {}): Promise<string | undefined> {
     // bail: plugins (like help) can intercept by returning a result
     const intercepted = this.ctx.bail('cli/execute', input)
     if (intercepted !== undefined) return intercepted
 
-    if (input.isEmpty()) return this.error('no command provided')
-    const token = input.next()
-    const command = this._aliases[token.content]
-    if (!command) {
-      return this.error(`command "${token.content}" not found`)
-    }
+    // Start from root command if it exists, otherwise require a command token
+    let resolved = this._aliases['']
+    let name = ''
 
-    // Multi-level command resolution (git-style subcommands)
-    let resolved = command
-    let name = token.content
+    // Try to resolve command from input tokens
     while (!input.isEmpty()) {
-      const next = input.next()
-      const subName = `${name}.${next.content}`
+      const token = input.next()
+      const subName = name ? `${name}.${token.content}` : token.content
       const sub = this._aliases[subName]
       if (sub) {
         resolved = sub
         name = subName
       } else {
-        input.unshift(next)
+        input.unshift(token)
         break
       }
     }
 
-    // Check if the first remaining token looks like a subcommand attempt
-    // (not starting with -, not quoted) on a command that has subcommands
-    if (!input.isEmpty()) {
-      const peeked = input.next()
-      const isParam = peeked.quotes || peeked.content.charCodeAt(0) === 45 // starts with -
-      if (!isParam) {
-        // Check if resolved command has subcommands
-        const prefix = name + '.'
-        let hasSubcommands = false
-        for (const cmd of this._commands) {
-          const cmdName = Object.keys(cmd._aliases)[0]
-          if (cmdName?.startsWith(prefix) && !cmdName.slice(prefix.length).includes('.')) {
-            hasSubcommands = true
-            break
-          }
-        }
-        if (hasSubcommands && !resolved._arguments.length) {
-          return this.error(`no such command: \`${peeked.content}\``, name)
-        }
-      }
-      input.unshift(peeked)
+    if (!resolved) {
+      if (input.isEmpty()) return this.error('no command provided')
+      return this.error(`command "${input.next().content}" not found`)
     }
 
     try {
       const argv = resolved.parse(input, args, options)
       return resolved.execute(argv)
     } catch (error: any) {
+      // If "too many arguments" and command has subcommands,
+      // it's likely a typo'd subcommand name
+      if (error.message === 'too many arguments') {
+        const prefix = name ? name + '.' : ''
+        for (const cmd of this._commands) {
+          const cmdName = Object.keys(cmd._aliases)[0]
+          if (cmdName !== undefined && cmdName.startsWith(prefix) && cmdName !== name) {
+            // has at least one subcommand → rephrase error
+            // recover the offending token from the parse state
+            return this.error(`unknown command`, name)
+          }
+        }
+      }
       return this.error(error.message, name)
     }
   }

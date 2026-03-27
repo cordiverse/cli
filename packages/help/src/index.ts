@@ -39,11 +39,22 @@ export function apply(ctx: Context, config: Config = {}) {
       tokens.push(input.next())
     }
 
-    if (tokens.length === 0) return showCommandList(cli)
+    if (tokens.length === 0) {
+      // No input: show root command help if root exists with subcommands
+      const root = cli._aliases['']
+      if (root) {
+        const subs = getSubcommands(cli, '')
+        if (subs.length > 0) {
+          const hasRequiredArgs = root._arguments.some(a => a.required)
+          if (!hasRequiredArgs) {
+            return showCommandHelp(cli, root, '')
+          }
+        }
+      }
+      return showCommandList(cli)
+    }
 
-    const hasHelp = tokens.some((t, i) =>
-      i > 0 && !t.quotes && (t.content === '-h' || t.content === '--help'),
-    )
+    const hasHelp = tokens.some(token => !token.quotes && (token.content === '-h' || token.content === '--help'))
 
     if (hasHelp) {
       const nonHelp = tokens.filter(t => t.content !== '-h' && t.content !== '--help')
@@ -52,23 +63,10 @@ export function apply(ctx: Context, config: Config = {}) {
           nonHelp.slice(1).map(t => t.content))
         if (resolved) return showCommandHelp(cli, resolved.command, resolved.name)
       }
+      // bare --help: show root help if root exists, otherwise command list
+      const root = cli._aliases['']
+      if (root) return showCommandHelp(cli, root, '')
       return showCommandList(cli)
-    }
-
-    // Check for bare command with subcommands but no arguments/options
-    // e.g. `cordis` or `yakumo` with no args → show help
-    if (tokens.length === 1 && !tokens[0].quotes) {
-      const resolved = resolveCommandName(cli, tokens[0].content, [])
-      if (resolved) {
-        const subs = getSubcommands(cli, resolved.name)
-        // Only remaining tokens after command name would be the rest
-        // Since we only have the command token, check if it has subcommands
-        // and no required arguments
-        const hasRequiredArgs = resolved.command._arguments.some(a => a.required)
-        if (subs.length > 0 && !hasRequiredArgs) {
-          return showCommandHelp(cli, resolved.command, resolved.name)
-        }
-      }
     }
 
     // Not help — push tokens back
@@ -84,7 +82,7 @@ export function apply(ctx: Context, config: Config = {}) {
       const parts = command.split('.')
       const resolved = resolveCommandName(cli, parts[0], parts.slice(1))
       if (resolved) {
-        const displayName = command.replace(/\./g, ' ')
+        const displayName = getDisplayName(cli, command)
         const argParts = resolved.command._arguments.map(formatArg)
         const usageParts = [kleur.bold().cyan(displayName), kleur.cyan('[OPTIONS]')]
         usageParts.push(...argParts)
@@ -110,19 +108,31 @@ function resolveCommandName(cli: CLI, first: string, rest: string[]): { command:
 }
 
 function getSubcommands(cli: CLI, parentName: string, showHidden = false): { command: Command; name: string }[] {
-  const prefix = parentName + '.'
   const subs: { command: Command; name: string }[] = []
   const seen = new Set<Command>()
-  for (const cmd of cli._commands) {
-    if (seen.has(cmd)) continue
-    const name = Object.keys(cmd._aliases)[0]
-    if (!name?.startsWith(prefix)) continue
-    // Only direct children (no further dots after prefix)
-    const rest = name.slice(prefix.length)
-    if (rest.includes('.')) continue
-    if (!showHidden && cmd.config.hidden) continue
-    seen.add(cmd)
-    subs.push({ command: cmd, name })
+  if (parentName === '') {
+    // Root command: direct children are all top-level commands (no dots in name)
+    for (const cmd of cli._commands) {
+      if (seen.has(cmd)) continue
+      const name = Object.keys(cmd._aliases)[0]
+      if (name === undefined || name === '') continue // skip root itself
+      if (name.includes('.')) continue // skip nested
+      if (!showHidden && cmd.config.hidden) continue
+      seen.add(cmd)
+      subs.push({ command: cmd, name })
+    }
+  } else {
+    const prefix = parentName + '.'
+    for (const cmd of cli._commands) {
+      if (seen.has(cmd)) continue
+      const name = Object.keys(cmd._aliases)[0]
+      if (!name?.startsWith(prefix)) continue
+      const rest = name.slice(prefix.length)
+      if (rest.includes('.')) continue
+      if (!showHidden && cmd.config.hidden) continue
+      seen.add(cmd)
+      subs.push({ command: cmd, name })
+    }
   }
   return subs.sort((a, b) => a.name.localeCompare(b.name))
 }
@@ -141,7 +151,8 @@ function showCommandList(cli: CLI, showHidden = false): string {
       return nameA.localeCompare(nameB)
     })
 
-  const lines: string[] = [kleur.bold().green('Usage:') + ' <COMMAND> [OPTIONS]', '']
+  const prefix = cli.config.name ? cli.config.name + ' ' : ''
+  const lines: string[] = [kleur.bold().green('Usage:') + ` ${prefix}<COMMAND> [OPTIONS]`, '']
 
   if (commands.length === 0) {
     lines.push('No commands available.')
@@ -165,8 +176,14 @@ function showCommandList(cli: CLI, showHidden = false): string {
   return lines.join('\n')
 }
 
+function getDisplayName(cli: CLI, name: string): string {
+  const prefix = cli.config.name || ''
+  const commandName = name.replace(/\./g, ' ')
+  return [prefix, commandName].filter(Boolean).join(' ')
+}
+
 function showCommandHelp(cli: CLI, command: Command, name: string, showHidden = false): string {
-  const displayName = name.replace(/\./g, ' ')
+  const displayName = getDisplayName(cli, name)
   const argParts = command._arguments.map(formatArg)
   const optionList = Array.from(command._optionList)
     .filter(opt => showHidden || !opt.hidden)
@@ -180,7 +197,8 @@ function showCommandHelp(cli: CLI, command: Command, name: string, showHidden = 
   }
 
   // Usage
-  const usageParts = [kleur.bold().cyan(displayName)]
+  const usageParts: string[] = []
+  if (displayName) usageParts.push(kleur.bold().cyan(displayName))
   if (hasOptions) usageParts.push(kleur.cyan('[OPTIONS]'))
   if (subcommands.length) usageParts.push(kleur.cyan('[COMMAND]'))
   usageParts.push(...argParts)
@@ -190,7 +208,7 @@ function showCommandHelp(cli: CLI, command: Command, name: string, showHidden = 
   if (command._arguments.length > 0) {
     lines.push('', kleur.bold().green('Arguments:'))
     for (const arg of command._arguments) {
-      lines.push('  ' + kleur.green(formatArg(arg)))
+      lines.push('  ' + kleur.bold().cyan(formatArg(arg)))
     }
   }
 
@@ -208,9 +226,10 @@ function showCommandHelp(cli: CLI, command: Command, name: string, showHidden = 
   // Subcommands
   if (subcommands.length) {
     lines.push('', kleur.bold().green('Commands:'))
-    const maxLen = Math.max(...subcommands.map(s => s.name.slice(name.length + 1).length))
+    const stripLen = name ? name.length + 1 : 0
+    const maxLen = Math.max(...subcommands.map(s => s.name.slice(stripLen).length))
     for (const sub of subcommands) {
-      const subName = sub.name.slice(name.length + 1) // strip parent prefix
+      const subName = sub.name.slice(stripLen)
       const pad = ' '.repeat(Math.max(2, maxLen - subName.length + 4))
       const desc = sub.command.description ? pad + sub.command.description : ''
       lines.push('  ' + kleur.bold().cyan(subName) + desc)

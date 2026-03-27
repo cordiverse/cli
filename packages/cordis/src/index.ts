@@ -17,7 +17,7 @@ interface Event {
 
 export function apply(ctx: Context, config: Options) {
   ctx.cli
-    .command('cordis', 'Meta-Framework for Modern Applications')
+    .command('', 'Meta-Framework for Modern Applications')
     .option('-v, --version', 'Show version')
     .action(({ options }) => {
       if (options.version) {
@@ -28,8 +28,8 @@ export function apply(ctx: Context, config: Options) {
     })
 
   ctx.cli
-    .command('cordis.run [file]', 'start a cordis application')
-    .option('-d, --daemon', 'run as daemon')
+    .command('run [file]', 'Start a cordis application')
+    .option('-d, --daemon', 'Run as daemon')
     .action(async (argv) => {
       const file = argv.args[0] || ''
       const options = argv.options as { daemon?: boolean }

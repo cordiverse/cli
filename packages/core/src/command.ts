@@ -14,7 +14,7 @@ export interface CommandAlias {
 }
 
 export type CommandAction<A extends any[] = any[], O extends {} = {}> =
-  | ((argv: Argv<A, O>, ...args: A) => string | void | Promise<string | void>)
+  | ((argv: Argv<A, O>, ...args: A) => string | undefined | Promise<string | undefined>)
 
 export interface OptionConfig<T extends TypeInit = TypeInit> {
   type?: T

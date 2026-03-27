@@ -454,16 +454,16 @@ describe('Command Execution', () => {
     cmd.dispose()
   })
 
-  it('should return error string for empty input', () => {
+  it('should return error string for empty input', async () => {
     const input = new Input.String('')
-    const result = ctx.cli.execute(input)
+    const result = await ctx.cli.execute(input)
     expect(result).to.be.a('string')
     expect(result).to.include('Error:')
   })
 
-  it('should return error string for unknown command', () => {
+  it('should return error string for unknown command', async () => {
     const input = new Input.String('nonexistent')
-    const result = ctx.cli.execute(input)
+    const result = await ctx.cli.execute(input)
     expect(result).to.be.a('string')
     expect(result).to.include('Error:')
     expect(result).to.include('not found')
