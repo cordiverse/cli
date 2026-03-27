@@ -33,7 +33,9 @@ jobs:
       - name: Install
         run: yarn --no-immutable
       - name: Build
-        run: yarn build
+        run: |
+          yarn yakumo esbuild
+          yarn yakumo tsc
 
   test:
     runs-on: ubuntu-latest

@@ -11,7 +11,6 @@
   "license": "MIT",
   "scripts": {
     "yakumo": "yakumo --import tsx --import yml-register",
-    "build": "yarn yakumo build",
     "lint": "eslint --cache",
     "test": "yarn yakumo mocha --import tsx",
     "test:text": "shx rm -rf coverage && c8 -r text yarn test",
@@ -30,10 +29,10 @@
     "shx": "^0.4.0",
     "tsx": "npm:@cordiverse/tsx@4.19.3-fix.3",
     "typescript": "^5.8.2",
-    "yakumo": "^3.0.1",
-    "yakumo-esbuild": "^3.0.0",
-    "yakumo-mocha": "^3.0.0",
-    "yakumo-tsc": "^3.0.0",
+    "yakumo": "^3.0.2",
+    "yakumo-esbuild": "^3.0.1",
+    "yakumo-mocha": "^3.0.1",
+    "yakumo-tsc": "^3.0.1",
     "yml-register": "^1.2.5"
   }
 }
