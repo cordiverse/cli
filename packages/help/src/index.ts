@@ -78,16 +78,19 @@ export function apply(ctx: Context, config: Config = {}) {
   // Handle cli/error: append usage and help hint
   ctx.on('cli/error', (command, next) => {
     let output = next('')
-    if (command) {
-      const parts = command.split('.')
-      const resolved = resolveCommandName(cli, parts[0], parts.slice(1))
-      if (resolved) {
-        const displayName = getDisplayName(cli, command)
-        const argParts = resolved.command._arguments.map(formatArg)
-        const usageParts = [kleur.bold().cyan(displayName), kleur.cyan('[OPTIONS]')]
-        usageParts.push(...argParts)
-        output += '\n\n' + kleur.bold().green('Usage:') + ' ' + usageParts.join(' ')
-      }
+    const parts = command.split('.')
+    const resolved = resolveCommandName(cli, parts[0], parts.slice(1))
+    if (resolved) {
+      const displayName = getDisplayName(cli, command)
+      const optionList = Array.from(resolved.command._optionList).filter(opt => !opt.hidden)
+      const hasOptions = optionList.length > 0
+      const subcommands = getSubcommands(cli, resolved.name)
+      const argParts = resolved.command._arguments.map(formatArg)
+      const usageParts = [kleur.bold().cyan(displayName)]
+      if (hasOptions) usageParts.push(kleur.cyan('[OPTIONS]'))
+      if (subcommands.length) usageParts.push(kleur.cyan('[COMMAND]'))
+      usageParts.push(...argParts)
+      output += '\n\n' + kleur.bold().green('Usage:') + ' ' + usageParts.join(' ')
     }
     output += '\n\n' + 'For more information, try ' + kleur.bold().cyan("'--help'") + '.'
     return output

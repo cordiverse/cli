@@ -14,7 +14,7 @@ export interface CommandAlias {
 }
 
 export type CommandAction<A extends any[] = any[], O extends {} = {}> =
-  | ((argv: Argv<A, O>, ...args: A) => string | undefined | Promise<string | undefined>)
+  | ((argv: Argv<A, O>, ...args: A) => string | void | Promise<string | void>)
 
 export interface OptionConfig<T extends TypeInit = TypeInit> {
   type?: T
@@ -93,6 +93,10 @@ export type ParseArgument<S extends string, A extends any[] = []> =
       : never
     : ParseArgument<S, A>
   : A
+
+export class CliSyntaxError extends Error {
+  command = ''
+}
 
 export class Command<A extends any[] = any[], O extends {} = {}> {
   _arguments: Param[] = []
@@ -229,7 +233,7 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
       // 3. numeric tokens at numeric type
       let { content, quotes } = input.next()
       if (isParam(content)) {
-        if (!param) throw new TypeError('too many arguments')
+        if (!param) throw new CliSyntaxError('too many arguments')
         args.push(param.parse(content))
         continue
       }
@@ -295,7 +299,7 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
         } else if (this.config.unknownOption === 'allow') {
           options[name] = j === names.length - 1 || quotes ? _content : true
         } else {
-          throw new TypeError(`unknown option: "${name}"`)
+          throw new CliSyntaxError(`unknown option: "${name}"`)
         }
       }
     }
@@ -304,7 +308,7 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
     const requiredArgs = this._arguments.filter(arg => arg.required)
     if (args.length < requiredArgs.length) {
       const extra = requiredArgs.slice(args.length)
-      throw new TypeError(`missing arguments: ${extra.map(arg => `"${arg.name}"`).join(', ')}`)
+      throw new CliSyntaxError(`missing arguments: ${extra.map(arg => `"${arg.name}"`).join(', ')}`)
     }
 
     // assign option values with default
@@ -323,7 +327,7 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
       }
     }
     if (missing.length) {
-      throw new TypeError(`missing options: ${missing.map(source => `"${source}"`).join(', ')}`)
+      throw new CliSyntaxError(`missing options: ${missing.map(source => `"${source}"`).join(', ')}`)
     }
 
     return { args, options, command: this }

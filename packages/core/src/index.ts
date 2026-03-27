@@ -1,7 +1,7 @@
 import { Context, DisposableList, Service } from 'cordis'
 import { Dict, hyphenate, Time } from 'cosmokit'
 import type {} from '@cordisjs/plugin-loader'
-import { Command, CommandConfig, ParseArgument } from './command'
+import { CliSyntaxError, Command, CommandConfig, ParseArgument } from './command'
 import { Input } from './parser'
 import kleur from 'kleur'
 
@@ -15,7 +15,7 @@ declare module 'cordis' {
 
   interface Events {
     'cli/execute'(input: Input): any
-    'cli/error'(command: string | undefined, next: (output: string) => string): string
+    'cli/error'(command: string, next: (output: string) => string): string
   }
 }
 
@@ -127,10 +127,23 @@ export class CLI extends Service {
         config: { await: true },
       },
     }, async () => {
+      /* eslint-disable no-console */
       const input = new Input.Argv()
-      const output = await this.execute(input)
-      // eslint-disable-next-line no-console
-      if (output) console.log(output)
+      try {
+        const output = await this.execute(input)
+        if (output) console.log(output)
+      } catch (error: any) {
+        if (error instanceof CliSyntaxError) {
+          const output = this.ctx.waterfall('cli/error', error.command, () => {
+            return kleur.bold().red('Error:') + ' ' + error.message
+          })
+          console.error(output)
+        } else {
+          console.error(error)
+        }
+        process.exit(1)
+      }
+      /* eslint-enable no-console */
     })
   }
 
@@ -222,35 +235,31 @@ export class CLI extends Service {
     }
 
     if (!resolved) {
-      if (input.isEmpty()) return this.error('no command provided')
-      return this.error(`command "${input.next().content}" not found`)
+      if (input.isEmpty()) throw new CliSyntaxError('no command provided')
+      throw new CliSyntaxError(`command "${input.next().content}" not found`)
     }
 
     try {
       const argv = resolved.parse(input, args, options)
-      return resolved.execute(argv)
+      return await resolved.execute(argv) as string | undefined
     } catch (error: any) {
-      // If "too many arguments" and command has subcommands,
-      // it's likely a typo'd subcommand name
-      if (error.message === 'too many arguments') {
-        const prefix = name ? name + '.' : ''
-        for (const cmd of this._commands) {
-          const cmdName = Object.keys(cmd._aliases)[0]
-          if (cmdName !== undefined && cmdName.startsWith(prefix) && cmdName !== name) {
-            // has at least one subcommand → rephrase error
-            // recover the offending token from the parse state
-            return this.error(`unknown command`, name)
+      if (error instanceof CliSyntaxError) {
+        // If "too many arguments" and command has subcommands,
+        // it's likely a typo'd subcommand name
+        if (error.message === 'too many arguments') {
+          const prefix = name ? name + '.' : ''
+          for (const cmd of this._commands) {
+            const cmdName = Object.keys(cmd._aliases)[0]
+            if (cmdName !== undefined && cmdName.startsWith(prefix) && cmdName !== name) {
+              error.message = `unknown command`
+              break
+            }
           }
         }
+        error.command ||= name
       }
-      return this.error(error.message, name)
+      throw error
     }
-  }
-
-  private error(message: string, command?: string): string {
-    return this.ctx.waterfall('cli/error', command, () => {
-      return kleur.bold().red('Error:') + ' ' + message
-    })
   }
 }
 
