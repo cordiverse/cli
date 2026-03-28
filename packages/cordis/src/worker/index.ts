@@ -3,6 +3,7 @@ import { EntryOptions, Loader } from '@cordisjs/plugin-loader'
 import * as daemon from './daemon.ts'
 
 export interface Config {
+  baseUrl?: string
   execArgv?: string[]
   path: string
   daemon: daemon.Config
@@ -14,7 +15,9 @@ export async function start(config: Config) {
   if (config.daemon.enabled) {
     await ctx.plugin(daemon, config.daemon)
   }
-  await ctx.plugin(Loader, {}) // TODO: inherit baseUrl from context
+  await ctx.plugin(Loader, {
+    baseUrl: config.baseUrl,
+  })
   for (const plugin of config.prelude ?? []) {
     await ctx.loader.create(plugin)
   }
