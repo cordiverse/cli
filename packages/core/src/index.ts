@@ -3,6 +3,7 @@ import { Dict, hyphenate, Time } from 'cosmokit'
 import type {} from '@cordisjs/plugin-loader'
 import { CliSyntaxError, Command, CommandConfig, ParseArgument } from './command'
 import { Input } from './parser'
+import * as help from './help'
 import kleur from 'kleur'
 
 export * from './command'
@@ -121,6 +122,8 @@ export class Cli extends Service {
       if (+timestamp) return timestamp
       throw new Error('internal.invalid-date')
     })
+
+    ctx.plugin(help)
 
     ctx.inject({
       loader: {

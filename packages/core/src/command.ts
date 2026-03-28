@@ -6,6 +6,7 @@ import { Input } from './parser'
 export interface CommandConfig {
   unknownNegative?: 'option' | 'string'
   unknownOption?: 'allow' | 'error'
+  hidden?: boolean
 }
 
 export interface CommandAlias {
@@ -20,6 +21,7 @@ export interface OptionConfig<T extends TypeInit = TypeInit> {
   type?: T
   default?: any
   descPath?: string
+  hidden?: boolean
 }
 
 export interface TypedOptionConfig<T extends TypeInit> extends OptionConfig<T> {

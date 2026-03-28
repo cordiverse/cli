@@ -1,17 +1,6 @@
 import { Context } from 'cordis'
-import type Cli from '@cordisjs/plugin-cli'
-import type { Command } from '@cordisjs/plugin-cli'
+import { Cli, Command } from '.'
 import kleur from 'kleur'
-
-declare module '@cordisjs/plugin-cli' {
-  interface CommandConfig {
-    hidden?: boolean
-  }
-
-  interface OptionConfig {
-    hidden?: boolean
-  }
-}
 
 export const name = 'cli-help'
 export const inject = ['cli']
