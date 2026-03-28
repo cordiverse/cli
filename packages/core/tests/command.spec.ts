@@ -363,6 +363,44 @@ describe('Command Parsing', () => {
       expect(options['tags']).to.deep.equal(['a', 'b'])
       cmd.dispose()
     })
+
+    it('should parse --no-xxx to negate boolean option', () => {
+      const cmd = ctx.cli.command('opt-parse-14')
+      cmd.option('-d, --daemon')
+      const input = new Input.String('--no-daemon')
+      const { options } = cmd.parse(input)
+      expect(options['daemon']).to.be.undefined
+      cmd.dispose()
+    })
+
+    it('should parse --no-xxx with default true', () => {
+      const cmd = ctx.cli.command('opt-parse-15')
+      cmd.option('-d, --daemon', { default: true })
+      const input = new Input.String('--no-daemon')
+      const { options } = cmd.parse(input)
+      expect(options['daemon']).to.be.undefined
+      cmd.dispose()
+    })
+
+    it('should parse --no-xxx with hyphenated option name', () => {
+      const cmd = ctx.cli.command('opt-parse-16')
+      cmd.option('--auto-restart')
+      const input = new Input.String('--no-auto-restart')
+      const { options } = cmd.parse(input)
+      expect(options['autoRestart']).to.be.undefined
+      cmd.dispose()
+    })
+
+    it('should not negate when --no-xxx is a defined option', () => {
+      const cmd = ctx.cli.command('opt-parse-17')
+      cmd.option('--no-color')
+      cmd.option('--color')
+      const input = new Input.String('--no-color')
+      const { options } = cmd.parse(input)
+      expect(options['noColor']).to.be.true
+      expect(options['color']).to.be.undefined
+      cmd.dispose()
+    })
   })
 
   describe('mixed arguments and options', () => {

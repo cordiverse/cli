@@ -270,11 +270,12 @@ export class Command<A extends any[] = any[], O extends {} = {}> {
           }
         } else if (
           i > 1
-          && content.slice(i, j).startsWith('no-')
-          && (option = this._optionDict[camelize(content.slice(i + 3, j))])
+          && name.startsWith('no-')
+          && (option = this._optionDict[camelize(name.slice(3))])
         ) {
           // explicit set undefined to skip default
           _options[option.source] = undefined
+          continue
         } else if (!input.isEmpty() && this.config.unknownOption === 'allow') {
           const token = input.next()
           if (isParam(token.content)) {
