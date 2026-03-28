@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { Context } from 'cordis'
 import type {} from '@cordisjs/plugin-cli'
-import type { Options } from './worker/index.ts'
+import type { Config } from './worker/index.ts'
 import kleur from 'kleur'
 
 export const name = 'cli-cordis'
@@ -15,7 +15,7 @@ interface Event {
   body?: string
 }
 
-export function apply(ctx: Context, config: Options) {
+export function apply(ctx: Context, config: Config) {
   ctx.cli
     .command('', 'Meta-Framework for Modern Applications')
     .option('-v, --version', 'Show version')
@@ -28,32 +28,27 @@ export function apply(ctx: Context, config: Options) {
     })
 
   ctx.cli
-    .command('run [file]', 'Start a cordis application')
-    .option('-d, --daemon', 'Run as daemon')
-    .action(async (argv) => {
-      const file = argv.args[0] || ''
-      const options = argv.options as { daemon?: boolean }
-
-      const workerOptions: Options = {
-        filename: file,
-        execArgv: [],
-        ...config,
+    .command('run [url]', 'Start a cordis application')
+    .option('-d, --daemon', 'Run as daemon', { default: config.daemon.enabled })
+    .action(async ({ args, options }) => {
+      const workerConfig: Config = { ...config }
+      if (args[0]) {
+        workerConfig.url = args[0]
       }
 
       if (options.daemon) {
-        workerOptions.daemon = {}
-        createWorker(workerOptions)
+        createWorker(workerConfig)
       } else {
         // Direct mode: load in the same process
         const { start } = await import('./worker/index.ts')
-        await start(workerOptions)
+        await start(workerConfig)
       }
     })
 }
 
 let child: ChildProcess
 
-function createWorker(options: Options) {
+function createWorker(config: Config) {
   let timer: 0 | NodeJS.Timeout | undefined
   let started = false
 
@@ -65,22 +60,23 @@ function createWorker(options: Options) {
   child = fork(resolve(filename, `../worker/main${extname(filename)}`), [], {
     execArgv: [
       ...process.execArgv,
-      ...options.execArgv || [],
+      ...config.execArgv || [],
+      '--expose-internals',
     ],
     env: {
       ...process.env,
-      CORDIS_LOADER_OPTIONS: JSON.stringify(options),
+      CORDIS_LOADER_OPTIONS: JSON.stringify(config),
     },
   })
 
   child.on('message', (message: Event) => {
     if (message.type === 'start') {
       started = true
-      timer = options.daemon?.heartbeatTimeout && setTimeout(() => {
+      timer = config.daemon?.heartbeatTimeout && setTimeout(() => {
         // eslint-disable-next-line no-console
         console.log(kleur.red('daemon: heartbeat timeout'))
         child.kill('SIGKILL')
-      }, options.daemon?.heartbeatTimeout)
+      }, config.daemon?.heartbeatTimeout)
     } else if (message.type === 'shared') {
       process.env.CORDIS_SHARED = message.body
     } else if (message.type === 'heartbeat') {
@@ -99,13 +95,13 @@ function createWorker(options: Options) {
     if (signals.includes(signal)) return true
     if (code === 51) return false
     if (code === 52) return true
-    return !options.daemon?.autoRestart
+    return !config.daemon?.autoRestart
   }
 
   child.on('exit', (code, signal) => {
     if (shouldExit(code!, signal!)) {
       process.exit(code!)
     }
-    createWorker(options)
+    createWorker(config)
   })
 }

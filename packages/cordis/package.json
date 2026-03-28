@@ -24,15 +24,17 @@
   ],
   "peerDependencies": {
     "@cordisjs/plugin-cli": "^1.0.2",
+    "@cordisjs/plugin-loader": "^1.0.0-beta.5",
+    "@cordisjs/plugin-logger": "^1.0.1",
     "cordis": "^4.0.0-beta.7"
   },
   "devDependencies": {
     "@cordisjs/plugin-cli": "^1.0.2",
+    "@cordisjs/plugin-loader": "^1.0.0-beta.5",
+    "@cordisjs/plugin-logger": "^1.0.1",
     "cordis": "^4.0.0-beta.7"
   },
   "dependencies": {
-    "@cordisjs/plugin-loader": "^1.0.0-beta.5",
-    "@cordisjs/plugin-logger": "^1.0.1",
     "cosmokit": "^1.8.1",
     "dotenv": "^16.6.1",
     "kleur": "^4.1.5"

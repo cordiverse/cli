@@ -1,6 +1,7 @@
 import { Context } from 'cordis'
 
 export interface Config {
+  enabled?: boolean
   autoRestart?: boolean
   heartbeatInterval?: number
   heartbeatTimeout?: number

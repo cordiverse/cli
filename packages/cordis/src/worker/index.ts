@@ -1,19 +1,18 @@
-// DO NOT change this import to `cordis` as it is related to HMR semantics
 import { Context } from 'cordis'
-import Loader from '@cordisjs/plugin-loader'
-import Logger from '@cordisjs/plugin-logger'
+import { EntryOptions, Loader } from '@cordisjs/plugin-loader'
 import * as daemon from './daemon.ts'
 import * as dotenv from 'dotenv'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-export interface Options extends Loader.Config {
+export interface Config {
   execArgv?: string[]
-  logger?: Logger.Config
-  daemon?: daemon.Config
+  url: string
+  daemon: daemon.Config
+  prelude?: EntryOptions[]
 }
 
-export async function start(options: Options) {
+export async function start(config: Config) {
   // load .env files
   const override = {}
   const envFiles = ['.env', '.env.local']
@@ -28,7 +27,18 @@ export async function start(options: Options) {
   }
 
   const ctx = new Context()
-  if (options.logger) await ctx.plugin(Logger, options.logger)
-  if (options.daemon) await ctx.plugin(daemon, options.daemon)
-  await ctx.plugin(Loader, options)
+  if (config.daemon.enabled) {
+    await ctx.plugin(daemon, config.daemon)
+  }
+  await ctx.plugin(Loader, {}) // TODO: inherit baseUrl from context
+  for (const plugin of config.prelude ?? []) {
+    await ctx.loader.create(plugin)
+  }
+  await ctx.loader.create({
+    name: '@cordisjs/plugin-include',
+    config: {
+      url: config.url,
+      enableLogs: true,
+    },
+  })
 }
