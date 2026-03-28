@@ -36,7 +36,6 @@
   },
   "dependencies": {
     "cosmokit": "^1.8.1",
-    "dotenv": "^16.6.1",
     "kleur": "^4.1.5"
   }
 }
