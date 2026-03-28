@@ -1,7 +1,7 @@
 import { Context } from 'cordis'
+import type {} from '@cordisjs/plugin-loader'
 import { parse } from 'dotenv'
 import { expand } from 'dotenv-expand'
-import { resolve } from 'node:path'
 import { readFileSync } from 'node:fs'
 
 declare module 'cordis' {
@@ -10,16 +10,8 @@ declare module 'cordis' {
   }
 }
 
-function loadEnvFile(filepath: string): Record<string, string> {
-  try {
-    return parse(readFileSync(filepath))
-  } catch {
-    return {}
-  }
-}
-
 export default function env(ctx: Context) {
-  const baseDir = ctx.baseDir ?? process.cwd()
+  const baseUrl = ctx.get('baseUrl')
   const mode = process.env.NODE_ENV ?? 'development'
 
   // Load in priority order (low to high):
@@ -28,19 +20,21 @@ export default function env(ctx: Context) {
   // 3. .env.{mode}
   // 4. .env.{mode}.local
   const files = [
-    '.env',
-    '.env.local',
-    `.env.${mode}`,
-    `.env.${mode}.local`,
+    './.env',
+    './.env.local',
+    `./.env.${mode}`,
+    `./.env.${mode}.local`,
   ]
 
   const merged: Record<string, string> = {}
   for (const file of files) {
-    Object.assign(merged, loadEnvFile(resolve(baseDir, file)))
+    try {
+      Object.assign(merged, parse(readFileSync(new URL(file, baseUrl))))
+    } catch {}
   }
 
   // Expand variable references (e.g. ${VAR})
-  expand({ parsed: merged, processEnv: process.env })
+  expand({ parsed: merged, processEnv: process.env as Record<string, string> })
 
   // Apply to process.env (don't override existing values)
   for (const [key, value] of Object.entries(merged)) {

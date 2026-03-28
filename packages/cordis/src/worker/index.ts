@@ -4,7 +4,7 @@ import * as daemon from './daemon.ts'
 
 export interface Config {
   execArgv?: string[]
-  url: string
+  path: string
   daemon: daemon.Config
   prelude?: EntryOptions[]
 }
@@ -21,7 +21,7 @@ export async function start(config: Config) {
   await ctx.loader.create({
     name: '@cordisjs/plugin-include',
     config: {
-      url: config.url,
+      path: config.path,
       enableLogs: true,
     },
   })

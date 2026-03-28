@@ -491,15 +491,11 @@ describe('Command Execution', () => {
     cmd.dispose()
   })
 
-  it('should throw string for empty input', async () => {
+  it('should return help text for empty input', async () => {
     const input = new Input.String('')
-    try {
-      await ctx.cli.execute(input)
-      expect.fail('should have thrown')
-    } catch (err: any) {
-      expect(err).to.be.instanceOf(Error)
-      expect(err.message).to.include('no command provided')
-    }
+    const result = await ctx.cli.execute(input)
+    expect(result).to.be.a('string')
+    expect(result).to.include('Usage:')
   })
 
   it('should throw string for unknown command', async () => {

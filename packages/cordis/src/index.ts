@@ -33,7 +33,7 @@ export function apply(ctx: Context, config: Config) {
     .action(async ({ args, options }) => {
       const workerConfig: Config = { ...config }
       if (args[0]) {
-        workerConfig.url = args[0]
+        workerConfig.path = args[0]
       }
 
       if (options.daemon) {
