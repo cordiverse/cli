@@ -1,7 +1,7 @@
 {
   "name": "@cordisjs/plugin-cli",
   "description": "CLI service for Cordis",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "type": "module",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",

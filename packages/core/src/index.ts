@@ -123,32 +123,16 @@ export class Cli extends Service {
       throw new Error('internal.invalid-date')
     })
 
-    ctx.plugin(help)
+    help.apply(ctx)
 
-    ctx.inject({
-      loader: {
-        required: true,
-        config: { await: true },
-      },
-    }, async () => {
-      /* eslint-disable no-console */
-      const input = new Input.Argv()
-      try {
-        const output = await this.execute(input)
-        if (output) console.log(output)
-      } catch (error: any) {
-        if (error instanceof CliSyntaxError) {
-          const output = this.ctx.waterfall('cli/error', error.command, () => {
-            return kleur.bold().red('Error:') + ' ' + error.message
-          })
-          console.error(output)
-        } else {
-          console.error(error)
-        }
-        process.exit(1)
-      }
-      /* eslint-enable no-console */
-    })
+    if (ctx.fiber.entry) {
+      ctx.inject({
+        loader: {
+          required: true,
+          config: { await: true },
+        },
+      }, () => this.executeArgv())
+    }
   }
 
   define<K extends keyof Types>(name: K, parse: Type.Parse<Types[K]>, options?: Omit<Type<Types[K]>, 'parse'>) {
@@ -264,6 +248,26 @@ export class Cli extends Service {
       }
       throw error
     }
+  }
+
+  async executeArgv() {
+    /* eslint-disable no-console */
+    const input = new Input.Argv()
+    try {
+      const output = await this.execute(input)
+      if (output) console.log(output)
+    } catch (error: any) {
+      if (error instanceof CliSyntaxError) {
+        const output = this.ctx.waterfall('cli/error', error.command, () => {
+          return kleur.bold().red('Error:') + ' ' + error.message
+        })
+        console.error(output)
+      } else {
+        console.error(error)
+      }
+      process.exit(1)
+    }
+    /* eslint-enable no-console */
   }
 }
 
