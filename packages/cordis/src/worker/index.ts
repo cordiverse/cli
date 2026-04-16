@@ -12,12 +12,11 @@ export interface Config {
 
 export async function start(config: Config) {
   const ctx = new Context()
+  ctx.baseUrl = config.baseUrl
   if (config.daemon.enabled) {
     await ctx.plugin(daemon, config.daemon)
   }
-  await ctx.plugin(Loader, {
-    baseUrl: config.baseUrl,
-  })
+  await ctx.plugin(Loader)
   for (const plugin of config.prelude ?? []) {
     await ctx.loader.create(plugin)
   }

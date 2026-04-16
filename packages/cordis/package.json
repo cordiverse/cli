@@ -1,6 +1,6 @@
 {
   "name": "@cordisjs/plugin-cli-cordis",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "CLI for Cordis Framework",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
@@ -22,17 +22,28 @@
     "lib",
     "src"
   ],
+  "author": "Shigma <shigma10826@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cordiverse/cli.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/cordiverse/cli/issues"
+  },
+  "homepage": "https://github.com/cordiverse/cli",
   "peerDependencies": {
     "@cordisjs/plugin-cli": "^1.1.0",
-    "@cordisjs/plugin-loader": "^1.0.0-rc.0",
-    "@cordisjs/plugin-logger": "^1.0.1",
-    "cordis": "^4.0.0-rc.0"
+    "@cordisjs/plugin-loader": "^1.0.0-rc.2",
+    "@cordisjs/plugin-logger": "^1.0.2",
+    "cordis": "^4.0.0-rc.2"
   },
   "devDependencies": {
     "@cordisjs/plugin-cli": "^1.1.0",
-    "@cordisjs/plugin-loader": "^1.0.0-rc.0",
-    "@cordisjs/plugin-logger": "^1.0.1",
-    "cordis": "^4.0.0-rc.0"
+    "@cordisjs/plugin-loader": "^1.0.0-rc.2",
+    "@cordisjs/plugin-logger": "^1.0.2",
+    "cordis": "^4.0.0-rc.2"
   },
   "dependencies": {
     "cosmokit": "^1.8.1",

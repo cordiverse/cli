@@ -9,33 +9,33 @@
     "lib"
   ],
   "engines": {
-    "node": "^18.0.0 || >=20.0.0"
+    "node": "^20.0.0 || >=22.0.0"
   },
   "author": "Shigma <shigma10826@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cordiverse/cordis.git",
+    "url": "git+https://github.com/cordiverse/cli.git",
     "directory": "packages/cli"
   },
   "bugs": {
-    "url": "https://github.com/cordiverse/cordis/issues"
+    "url": "https://github.com/cordiverse/cli/issues"
   },
-  "homepage": "https://github.com/cordiverse/cordis",
+  "homepage": "https://github.com/cordiverse/cli",
   "keywords": [
     "cordis",
     "effect",
     "framework"
   ],
   "peerDependencies": {
-    "@cordisjs/plugin-loader": "^1.0.0-rc.0",
-    "cordis": "4.0.0-rc.0"
+    "@cordisjs/plugin-loader": "^1.0.0-rc.2",
+    "cordis": "4.0.0-rc.2"
   },
   "devDependencies": {
-    "@cordisjs/plugin-loader": "^1.0.0-rc.0",
+    "@cordisjs/plugin-loader": "^1.0.0-rc.2",
     "@types/chai": "^5.2.3",
     "chai": "^5.3.3",
-    "cordis": "4.0.0-rc.0"
+    "cordis": "4.0.0-rc.2"
   },
   "dependencies": {
     "cosmokit": "^1.8.1",

@@ -1,7 +1,7 @@
 {
   "name": "@cordisjs/plugin-env",
   "description": "Environment variables service for cordis",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -12,13 +12,13 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cordiverse/cordis.git",
+    "url": "git+https://github.com/cordiverse/cli.git",
     "directory": "packages/env"
   },
   "bugs": {
-    "url": "https://github.com/cordiverse/cordis/issues"
+    "url": "https://github.com/cordiverse/cli/issues"
   },
-  "homepage": "https://github.com/cordiverse/cordis",
+  "homepage": "https://github.com/cordiverse/cli",
   "keywords": [
     "cordis",
     "env",
@@ -26,10 +26,10 @@
     "plugin"
   ],
   "devDependencies": {
-    "cordis": "^4.0.0-rc.0"
+    "cordis": "^4.0.0-rc.2"
   },
   "peerDependencies": {
-    "cordis": "^4.0.0-rc.0"
+    "cordis": "^4.0.0-rc.2"
   },
   "dependencies": {
     "dotenv": "^17.3.1",

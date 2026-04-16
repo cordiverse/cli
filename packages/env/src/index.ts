@@ -1,5 +1,4 @@
 import { Context } from 'cordis'
-import type {} from '@cordisjs/plugin-loader'
 import { parse } from 'dotenv'
 import { expand } from 'dotenv-expand'
 import { readFileSync } from 'node:fs'
@@ -11,7 +10,6 @@ declare module 'cordis' {
 }
 
 export default function env(ctx: Context) {
-  const baseUrl = ctx.get('baseUrl')
   const mode = process.env.NODE_ENV ?? 'development'
 
   // Load in priority order (low to high):
@@ -29,7 +27,7 @@ export default function env(ctx: Context) {
   const merged: Record<string, string> = {}
   for (const file of files) {
     try {
-      Object.assign(merged, parse(readFileSync(new URL(file, baseUrl))))
+      Object.assign(merged, parse(readFileSync(new URL(file, ctx.baseUrl))))
     } catch {}
   }
 
