@@ -29,13 +29,13 @@
   ],
   "peerDependencies": {
     "@cordisjs/plugin-loader": "^1.0.0-rc.2",
-    "cordis": "4.0.0-rc.2"
+    "cordis": "4.0.0-rc.3"
   },
   "devDependencies": {
     "@cordisjs/plugin-loader": "^1.0.0-rc.2",
     "@types/chai": "^5.2.3",
     "chai": "^5.3.3",
-    "cordis": "4.0.0-rc.2"
+    "cordis": "4.0.0-rc.3"
   },
   "dependencies": {
     "cosmokit": "^1.8.1",

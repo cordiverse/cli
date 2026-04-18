@@ -1,6 +1,6 @@
 {
   "name": "@cordisjs/plugin-cli-cordis",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "CLI for Cordis Framework",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
@@ -37,13 +37,13 @@
     "@cordisjs/plugin-cli": "^1.1.0",
     "@cordisjs/plugin-loader": "^1.0.0-rc.2",
     "@cordisjs/plugin-logger": "^1.0.2",
-    "cordis": "^4.0.0-rc.2"
+    "cordis": "^4.0.0-rc.3"
   },
   "devDependencies": {
     "@cordisjs/plugin-cli": "^1.1.0",
     "@cordisjs/plugin-loader": "^1.0.0-rc.2",
     "@cordisjs/plugin-logger": "^1.0.2",
-    "cordis": "^4.0.0-rc.2"
+    "cordis": "^4.0.0-rc.3"
   },
   "dependencies": {
     "cosmokit": "^1.8.1",
