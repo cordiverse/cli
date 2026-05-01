@@ -28,14 +28,12 @@
     "framework"
   ],
   "peerDependencies": {
-    "@cordisjs/plugin-loader": "^1.0.0-rc.2",
-    "cordis": "4.0.0-rc.3"
+    "@cordisjs/plugin-loader": "^1.0.0-rc.3",
+    "cordis": "4.0.0-rc.4"
   },
   "devDependencies": {
-    "@cordisjs/plugin-loader": "^1.0.0-rc.2",
-    "@types/chai": "^5.2.3",
-    "chai": "^5.3.3",
-    "cordis": "4.0.0-rc.3"
+    "@cordisjs/plugin-loader": "^1.0.0-rc.3",
+    "cordis": "4.0.0-rc.4"
   },
   "dependencies": {
     "cosmokit": "^1.8.1",

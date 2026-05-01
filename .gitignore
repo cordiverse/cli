@@ -10,7 +10,6 @@ temp
 !.yarn/sdks
 !.yarn/versions
 
-todo.md
 yarn.lock
 coverage/
 node_modules/
@@ -21,6 +20,10 @@ package-lock.json
 tsconfig.tsbuildinfo
 report.*.json
 
+TODO.md
+CLAUDE.md
+
+.claude
 .eslintcache
 .DS_Store
 .idea

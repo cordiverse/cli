@@ -1,10 +1,10 @@
+import { describe, it, expect, beforeAll } from 'vitest'
 import { Context } from 'cordis'
-import { expect } from 'chai'
 import { Cli, Input } from '@cordisjs/plugin-cli'
 
 const ctx = new Context()
 
-before(async () => {
+beforeAll(async () => {
   await ctx.plugin(Cli)
 })
 

@@ -35,15 +35,15 @@
   "homepage": "https://github.com/cordiverse/cli",
   "peerDependencies": {
     "@cordisjs/plugin-cli": "^1.1.0",
-    "@cordisjs/plugin-loader": "^1.0.0-rc.2",
+    "@cordisjs/plugin-loader": "^1.0.0-rc.3",
     "@cordisjs/plugin-logger": "^1.0.2",
-    "cordis": "^4.0.0-rc.3"
+    "cordis": "^4.0.0-rc.4"
   },
   "devDependencies": {
     "@cordisjs/plugin-cli": "^1.1.0",
-    "@cordisjs/plugin-loader": "^1.0.0-rc.2",
+    "@cordisjs/plugin-loader": "^1.0.0-rc.3",
     "@cordisjs/plugin-logger": "^1.0.2",
-    "cordis": "^4.0.0-rc.3"
+    "cordis": "^4.0.0-rc.4"
   },
   "dependencies": {
     "cosmokit": "^1.8.1",
