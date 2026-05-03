@@ -1,7 +1,7 @@
 {
   "name": "@cordisjs/plugin-cli",
   "description": "CLI service for Cordis",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
@@ -29,11 +29,11 @@
   ],
   "peerDependencies": {
     "@cordisjs/plugin-loader": "^1.0.0-rc.3",
-    "cordis": "4.0.0-rc.4"
+    "cordis": "^4.0.0-rc.4"
   },
   "devDependencies": {
     "@cordisjs/plugin-loader": "^1.0.0-rc.3",
-    "cordis": "4.0.0-rc.4"
+    "cordis": "^4.0.0-rc.4"
   },
   "dependencies": {
     "cosmokit": "^1.8.1",

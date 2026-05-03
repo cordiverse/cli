@@ -34,13 +34,13 @@
   },
   "homepage": "https://github.com/cordiverse/cli",
   "peerDependencies": {
-    "@cordisjs/plugin-cli": "^1.1.0",
+    "@cordisjs/plugin-cli": "^1.1.1",
     "@cordisjs/plugin-loader": "^1.0.0-rc.3",
     "@cordisjs/plugin-logger": "^1.0.2",
     "cordis": "^4.0.0-rc.4"
   },
   "devDependencies": {
-    "@cordisjs/plugin-cli": "^1.1.0",
+    "@cordisjs/plugin-cli": "^1.1.1",
     "@cordisjs/plugin-loader": "^1.0.0-rc.3",
     "@cordisjs/plugin-logger": "^1.0.2",
     "cordis": "^4.0.0-rc.4"
