@@ -12,6 +12,16 @@ export interface Config {
 
 export async function start(config: Config) {
   const ctx = new Context()
+
+  process.on('uncaughtException', (error) => {
+    ctx.logger.error(error)
+    process.exitCode = 1
+  })
+
+  process.on('unhandledRejection', (error) => {
+    ctx.logger.warn(error)
+  })
+
   ctx.baseUrl = config.baseUrl
   if (config.daemon.enabled) {
     await ctx.plugin(daemon, config.daemon)

@@ -127,10 +127,7 @@ export class Cli extends Service {
 
     if (ctx.fiber.entry) {
       ctx.inject({
-        loader: {
-          required: true,
-          config: { await: true },
-        },
+        loader: { await: true },
       }, () => this.executeArgv())
     }
   }
