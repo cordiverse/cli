@@ -21,8 +21,10 @@ tsconfig.tsbuildinfo
 report.*.json
 
 TODO.md
+AGENTS.md
 CLAUDE.md
 
+.agents
 .claude
 .eslintcache
 .DS_Store
