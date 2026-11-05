@@ -1,4 +1,5 @@
 import { Context } from 'cordis'
+import { noop } from 'cosmokit'
 import { EntryOptions, Loader } from '@cordisjs/plugin-loader'
 import * as daemon from './daemon.ts'
 
@@ -12,6 +13,12 @@ export interface Config {
 
 export async function start(config: Config) {
   const ctx = new Context()
+
+  // Output to stdio is best-effort. A write error, such as EPIPE after the
+  // reader has gone, would otherwise become an uncaught exception, whose log
+  // entry is written to the same stream and raises the next one.
+  process.stdout.on('error', noop)
+  process.stderr.on('error', noop)
 
   process.on('uncaughtException', (error) => {
     ctx.logger.error(error)

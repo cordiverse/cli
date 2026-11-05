@@ -11,7 +11,7 @@ export const name = 'cli-cordis'
 export const inject = ['cli']
 
 interface Event {
-  type: 'start' | 'shared' | 'heartbeat'
+  type: 'start' | 'shared' | 'heartbeat' | 'exit'
   body?: string
 }
 
@@ -52,6 +52,7 @@ let child: ChildProcess
 function createWorker(config: Config) {
   let timer: 0 | NodeJS.Timeout | undefined
   let started = false
+  let exiting = false
 
   process.env.CORDIS_SHARED = JSON.stringify({
     startTime: Date.now(),
@@ -82,6 +83,8 @@ function createWorker(config: Config) {
       process.env.CORDIS_SHARED = message.body
     } else if (message.type === 'heartbeat') {
       if (timer) timer.refresh()
+    } else if (message.type === 'exit') {
+      exiting = true
     }
   })
 
@@ -92,6 +95,7 @@ function createWorker(config: Config) {
 
   function shouldExit(code: number, signal: NodeJS.Signals) {
     if (!started) return true
+    if (exiting) return true
     if (code === 0) return true
     if (signals.includes(signal)) return true
     if (code === 51) return false
