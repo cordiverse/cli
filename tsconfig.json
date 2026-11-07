@@ -2,8 +2,8 @@
   "extends": "./tsconfig.base",
   "compilerOptions": {
     "paths": {
-      "@cordisjs/plugin-cli": ["./packages/core/src"],
-      "@cordisjs/plugin-cli-*": ["./packages/*/src"],
+      "@cordisjs/plugin-cli": ["./packages/core/src/index.ts"],
+      "@cordisjs/plugin-cli-*": ["./packages/*/src/index.ts"],
     },
   },
   "files": [],

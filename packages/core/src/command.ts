@@ -1,7 +1,7 @@
 import { Context, DisposableList, Service } from 'cordis'
 import { camelize, defineProperty, Dict } from 'cosmokit'
-import { Param, ResolveTypeInit, TypeInit, Types } from '.'
-import { Input } from './parser'
+import { Param, ResolveTypeInit, TypeInit, Types } from './index.ts'
+import { Input } from './parser.ts'
 
 export interface CommandConfig {
   unknownNegative?: 'option' | 'string'

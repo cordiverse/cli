@@ -1,5 +1,5 @@
 import { Context } from 'cordis'
-import { Cli, Command } from '.'
+import { Cli, Command } from './index.ts'
 import kleur from 'kleur'
 
 export const name = 'cli-help'

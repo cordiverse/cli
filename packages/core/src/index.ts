@@ -1,13 +1,13 @@
 import { Context, DisposableList, Service } from 'cordis'
 import { Dict, hyphenate, Time } from 'cosmokit'
 import type {} from '@cordisjs/plugin-loader'
-import { CliSyntaxError, Command, CommandConfig, ParseArgument } from './command'
-import { Input } from './parser'
-import * as help from './help'
+import { CliSyntaxError, Command, CommandConfig, ParseArgument } from './command.ts'
+import { Input } from './parser.ts'
+import * as help from './help.ts'
 import kleur from 'kleur'
 
-export * from './command'
-export * from './parser'
+export * from './command.ts'
+export * from './parser.ts'
 
 declare module 'cordis' {
   interface Context {
