@@ -29,12 +29,12 @@
     "framework"
   ],
   "peerDependencies": {
-    "@cordisjs/plugin-loader": "^1.0.0-rc.4",
-    "cordis": "^4.0.0-rc.5"
+    "@cordisjs/plugin-loader": "^1.0.0-rc.9",
+    "cordis": "^4.0.0-rc.12"
   },
   "devDependencies": {
-    "@cordisjs/plugin-loader": "^1.0.0-rc.4",
-    "cordis": "^4.0.0-rc.5"
+    "@cordisjs/plugin-loader": "^1.0.0-rc.9",
+    "cordis": "^4.0.0-rc.12"
   },
   "dependencies": {
     "cosmokit": "^1.8.1",

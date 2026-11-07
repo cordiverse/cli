@@ -27,13 +27,13 @@
     "plugin"
   ],
   "devDependencies": {
-    "cordis": "^4.0.0-rc.5"
+    "cordis": "^4.0.0-rc.12"
   },
   "peerDependencies": {
-    "cordis": "^4.0.0-rc.5"
+    "cordis": "^4.0.0-rc.12"
   },
   "dependencies": {
-    "dotenv": "^17.3.1",
+    "dotenv": "^17.4.2",
     "dotenv-expand": "^12.0.3"
   }
 }

@@ -14,7 +14,6 @@
     "noImplicitAny": false,
     "types": [
       "node",
-      "@cordisjs/unyaml/types",
     ],
   },
 }

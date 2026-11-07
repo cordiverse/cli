@@ -10,7 +10,6 @@ temp
 !.yarn/sdks
 !.yarn/versions
 
-yarn.lock
 coverage/
 node_modules/
 npm-debug.log
